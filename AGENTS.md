@@ -141,37 +141,32 @@ Ifremer MPC-Sentinel1 (`computeWVconstantecalibration.py`, héritée de
      `dataDcPolynomial` qui diverge). `quality` = `dataDcRmsErrorAboveThreshold`.
    - ordre des mesures = `sorted(glob(measurement/*.tiff))` = ordre legacy
      (tous wv1 avant wv2 en lex). Réf = `calib/....SAFE.nc`.
-3. **test_netcdf_parity.py** (END2END) — **EN COURS** : lancer
-   `WVcalibrator.AnalyseOneSAFE` (CLI `s1wvcalib`) sur le SAFE entier (143) et
-   comparer variable par variable vs le NetCDF de prod
-   `calib/S1D_WV_SLC__1SSV_..._9153.SAFE.nc`.
-   - Données montées dans `/legacy` (land mask, ecmwf_0100 light, classif DL,
-     SAFE). Config pointant vers `/legacy` : `/tmp/opencode/localconfig_legacy.yaml`
-     via `S1WVCALIB_CONFIG` (voir aussi `localconfig.yaml` projet si créé).
-   - Smoke-test `--dev` (3 imagettes) ✅ OK : pipeline complet (classif, ecmwf
-     colocalisation, land mask, GMF, écriture nc + 3 png) fonctionne.
-   - **Repo GitHub créé** : `umr-lops/s1wvcalibration` (vide).
-   - ⚠️ la prod est **L1 par défaut** (`include_zero_s0=True` dans le DAG) ;
-     comparer avec les mêmes params que la prod (ecmwf `0100`, no maxlat).
-   comparer `read_slc_imagette()` (xsar) vs l'ancien extracteur cerbere/
-   `SARImage` : `sigma0`, `sigma0_corrected`, `noise`, `doppler_centroid`,
-   `lon/lat/inc/elev`, `I=|DN|²` (nv/skew/kurt). **Exige un SAFE** → à faire
-   sur l'ancienne instance (`ssh datarmor-access`).
-3. **test_netcdf_parity.py** : lancer `WVcalibrator.AnalyseOneSAFE` sur un
-   SAFE réel (L1 et L2) et comparer variable par variable le NetCDF produit
-   vs celui de la production actuelle (tolérance stricte, ex. `atol=1e-5` en
-   dB / relatif en linéaire). C'est le test de bout en bout qui "valide".
-   - **SAFE de référence L1** (HPC, pour l'end2end) :
-     `/legacy/project/cersat/public/cache/project/mpc-sentinel1/analysis/s1_data_analysis/L1_v16/WV/S1D_WV_SLC__1S/2026/093/S1D_WV_SLC__1SSV_20260403T111410_20260403T114853_002181_00378E_9153.SAFE`
-     NetCDF production de référence :
-     `.../S1D_WV_SLC__1SSV_20260403T111410_20260403T114853_002181_00378E_9153.SAFE/calib/S1D_WV_SLC__1SSV_20260403T111410_20260403T114853_002181_00378E_9153.SAFE.nc`
+ 3. **test_netcdf_parity.py** (END2END) — ✅ **FAIT & VALIDÉ** : le pipeline
+    complet (143 imagettes) a été re-lancé via la CLI `s1wvcalib` et le NetCDF
+    produit a été comparé variable par variable au NetCDF de prod
+    `calib/S1D_WV_SLC__1SSV_..._9153.SAFE.nc` : **les 4 tests passent**
+    (constantes CMOD5n reporting <5e-3 dB ; SAR par-imagette à f32 ; biases/
+    nbobs exacts ; colocalisation vent à ≤3 imagettes près). C'est le test de
+    bout en bout qui "valide" la migration.
+    - Données montées dans `/legacy`. Config pointant vers `/legacy` :
+      `/tmp/opencode/localconfig_legacy.yaml` via `S1WVCALIB_CONFIG`.
+    - Pour valider sans relancer le pipeline (~30 min) : produire une fois le
+      nc puis `S1WVCALIB_E2E_NEW_NC=<chemin/nc> pytest -k netcdf_parity`.
+    - **Repo GitHub** : `umr-lops/s1wvcalibration` — commit initial poussé sur
+      `main` (2026-10-12, commit `8f2522d`). Les itérations suivantes en
+      feature-branch → PR vers `main`.
+ 4. **L1 reader xsar vs cerbere/SARImage** : couvert par `test_l1_parity.py`
+    (2 tests) sur le SAFE réel — voir point 2. (Pas besoin d'aller sur
+    `ssh datarmor-access`, le SAFE est monté dans `/legacy` du sandbox.)
 
-### B. Lint / qualité (étape 4)
-- `$MICRO run -n s1wvcalib ruff check src/ tests/` et `ruff format` —
-  corriger toutes les violations (règles dans `pyproject.toml`).
-- `mypy` (config `strict` sur `s1wvcalibration.*`, `ignore_missing_imports`) :
-  type-annoter les signatures, notamment `calibration.py`.
-- `nox -s lint` / `pre-commit run --all-files` (prek) une fois réseau dispo.
+### B. Lint / qualité (étape 4) — ✅ **FAIT**
+- ✅ `ruff check src/ tests/` : **0 violation** (était 155). `os.path`→pathlib,
+  datetimes → UTC tz-aware, f-strings, import ordre, etc.
+- ✅ `mypy` (strict sur `s1wvcalibration.*`) : **0 erreur** (était 99). Signatures
+  annotées partout ; `Config` est une `TypedDict` (`config.py`) ce qui casse les
+  `object` non indexables ; `NDArray` importé sous `TYPE_CHECKING`. Branch
+  `feat/mypy-strict` → PR vers `main`.
+- ⏳ `nox -s lint` / `pre-commit run --all-files` (prek) une fois réseau dispo.
 
 ### C. Divers / finition
 - **README** : documenter `config.yaml` / `localconfig.yaml`, le fait que la
@@ -181,11 +176,23 @@ Ifremer MPC-Sentinel1 (`computeWVconstantecalibration.py`, héritée de
   bien issues de la config et non hardcodées.
 - Décider du **nommage** : le script legacy s'appelle
   `computeWVconstantecalibration.py` (sic, typo) ; on a `calibration.py`.
-- **Commit / branch** : créer une branche `feat/initial-migration` et commit
-  **atomiques** (skeleton / config / gmf / xsar / parity-tests). **Ne pas
-  pousser/commuter sans accord explicite de l'utilisateur.**
-- Optionnel : ajouter un `Dockerfile`/`apptainer.def` (modèle
+- ✅ **Commit** : commit initial sur `main` fait (skeleton + config + core +
+  `_legacy` + tests de parité). Itérations suivantes en feature-branch.
+- ⏳ Optionnel : ajouter un `Dockerfile`/`apptainer.def` (modèle
   `s1reports/apptainer_s1reports.def`) pour le HPC.
+
+### Note datetime (importante, à ne pas "corriger")
+- La **chaîne de colocalisation** ECMWF (`date_sar1` → `findfile` /
+  `find_colocated_ecmwf_file` → `date_ecmwf`) est désormais **tz-aware UTC**
+  (`timezone.utc`) : les soustractions restent valides et la sélection du file
+  est identique, mais elle ne dépend plus du TZ de la machine (l'ancien code
+  naïf suivait le TZ local → bug latent sur un cluster en UTC).
+- ⚠️ `dates_sar` (qui alimente la variable NetCDF `time_sar`) reste **naive à
+  dessein** : xarray ne sait PAS sérialiser des datetimes tz-aware dans un
+  tableau objet (crash à l'écriture du nc). Garder naïf, `# noqa: DTZ007` +
+  commentaire en place.
+- Les datetimes de **affichage** (titre des PNG) restent naïfs (titre
+  byte-identique au legacy).
 
 ## Notes de design importantes (à ne pas "corriger")
 

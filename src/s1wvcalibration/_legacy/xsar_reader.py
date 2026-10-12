@@ -35,6 +35,7 @@ from __future__ import annotations
 import logging
 import re
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from scipy import interpolate
@@ -63,7 +64,7 @@ def _wv_subdataset_id(measu_path: str) -> str:
     return f"SENTINEL1_DS:{safe}:WV_{int(match.group(1)):03d}"
 
 
-def _open_calibrated(measu_path: str):
+def _open_calibrated(measu_path: str) -> tuple[Any, Any]:
     """Open the imagette with calibration, denoising and HR geoloc computed."""
     dsid = _wv_subdataset_id(measu_path)
     meta = Sentinel1Meta(dsid)
@@ -74,7 +75,7 @@ def _open_calibrated(measu_path: str):
     return meta, sar
 
 
-def _doppler_from_meta(meta, data):
+def _doppler_from_meta(meta: Any, data: Any) -> tuple[float, float]:
     """Mean Doppler-centroid estimate and its quality flag.
 
     Mirrors ``cerbere.mapper.safegeotiff.File.read_values('doppler_centroid')``:

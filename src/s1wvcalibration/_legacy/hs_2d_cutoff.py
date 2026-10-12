@@ -8,17 +8,23 @@ overwritten by the one read from the netCDF handler.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from .low_frequency_energy import get_low_frequencies_mask
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 logger = logging.getLogger(__name__)
 
 __all__ = ["get_WV_2D_cutoff"]
 
 
-def get_WV_2D_cutoff(handlerNC, lowfreqfilter: bool = True, plot_dev: bool = False):
+def get_WV_2D_cutoff(
+    handlerNC: Any, lowfreqfilter: bool = True, plot_dev: bool = False
+) -> tuple[Any, NDArray, NDArray]:
     """Return the mask to filter out the SAR azimuth/range cut-off.
 
     Args:

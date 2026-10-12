@@ -5,10 +5,15 @@ Ported verbatim from ``qualitycheck/cmod_ifremer.py`` (cleaned).
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from numpy import arange, cos, pi, sqrt, tanh
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
-def cmod_ifr2(T, wind, dir):
+
+def cmod_ifr2(T: NDArray, wind: NDArray, dir: NDArray) -> NDArray:
     """CMOD-IFR2 backscatter (linear) for incidence *T*, wind *wind*, azimuth *dir*.
 
     Args:
@@ -47,7 +52,7 @@ def cmod_ifr2(T, wind, dir):
     C[24] = 0.074654
     C[25] = -0.014713
 
-    def funcb1(Cc, x, V):
+    def funcb1(Cc: NDArray, x: NDArray, V: NDArray) -> NDArray:
         tetanor = (2.0 * x - (18.0 + 58.0)) / (58.0 - 18.0)
         vitnor = (2.0 * V - (25.0 + 3.0)) / (25.0 - 3.0)
         pv1 = vitnor
@@ -57,7 +62,7 @@ def cmod_ifr2(T, wind, dir):
         pt2 = 2 * tetanor * pt1 - 1.0
         return Cc[8] + Cc[9] * pv1 + (Cc[10] + Cc[11] * pv1) * pt1 + (Cc[12] + Cc[13] * pv1) * pt2
 
-    def funcb2(Cc, x, V):
+    def funcb2(Cc: NDArray, x: NDArray, V: NDArray) -> NDArray:
         tetanor = (2.0 * x - (18.0 + 58.0)) / (58.0 - 18.0)
         vitnor = (2.0 * V - (25.0 + 3.0)) / (25.0 - 3.0)
         pv1 = vitnor
@@ -94,7 +99,7 @@ def cmod_ifr2(T, wind, dir):
     return b0 * (1.0 + b1 * cosi + tanh(b2) * cos2i)
 
 
-def cmod_ifremer_matrix(T, wind, dir, model: str = "CMOD-IFR2"):
+def cmod_ifremer_matrix(T: NDArray, wind: NDArray, dir: NDArray, model: str = "CMOD-IFR2") -> NDArray:
     """Dispatch to :func:`cmod_ifr2` for the *model* name."""
     if model == "CMOD-IFR2":
         return cmod_ifr2(T, wind, dir)

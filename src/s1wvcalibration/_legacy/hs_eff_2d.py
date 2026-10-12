@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import copy
 import logging
+from typing import Any
 
 import numpy as np
 
@@ -20,7 +21,9 @@ logger = logging.getLogger(__name__)
 __all__ = ["get_S1_hs_eff_2D_cutoff", "get_ww3_hs_eff_2D_cutoff"]
 
 
-def get_S1_hs_eff_2D_cutoff(file_handler, lowfreqfilter: bool = True, plot_dev: bool = False):
+def get_S1_hs_eff_2D_cutoff(
+    file_handler: Any, lowfreqfilter: bool = True, plot_dev: bool = False
+) -> tuple[float, float, float, float, float, float]:
     """S-1 effective Hs using the 2D ellipsoid cutoff.
 
     Args:
@@ -103,7 +106,9 @@ def get_S1_hs_eff_2D_cutoff(file_handler, lowfreqfilter: bool = True, plot_dev: 
     )
 
 
-def get_ww3_hs_eff_2D_cutoff(file_handler_s1, file_handler_ww3, osw=None):  # noqa: ARG001 - legacy signature
+def get_ww3_hs_eff_2D_cutoff(
+    file_handler_s1: Any, file_handler_ww3: Any, osw: Any = None  # noqa: ARG001 - legacy signature
+) -> tuple[float, ...]:
     """WW3 spectrum regridded on the S-1 grid and masked with the S-1 2D cutoff.
 
     Returns:

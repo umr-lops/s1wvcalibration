@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
-from datetime import timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 import netCDF4 as nc
@@ -59,7 +59,9 @@ def read_full_file(fname: str) -> dict:
     return ecmwf_data
 
 
-def findfile(fltdate, path_light: str | None = None, path_full: str | None = None, typee: str = "light") -> str:
+def findfile(
+    fltdate: datetime | float, path_light: str | None = None, path_full: str | None = None, typee: str = "light"
+) -> str:
     """Return the path of the nearest hourly ECMWF file for *fltdate*.
 
     Args:

@@ -12,10 +12,55 @@ import logging
 import os
 from functools import lru_cache
 from pathlib import Path
+from typing import TypedDict, cast
 
 import yaml
 
 logger = logging.getLogger(__name__)
+
+
+class _WindRanges(TypedDict):
+    """Center wind speed (m/s) per sweet-spot (``classical`` / ``noise_free``)."""
+
+    classical: int
+    noise_free: int
+
+
+class _Calibration(TypedDict):
+    """Per-SAFE calibration constants."""
+
+    high_lat_threshold: int
+    wind_ranges: _WindRanges
+    dev_max_measu: int
+    time_unit: str
+
+
+class _Gmf(TypedDict):
+    """GMF (xsarsea) settings."""
+
+    nc_luts_path: str
+
+
+class _Paths(TypedDict):
+    """Data locations on the cluster (all paths as ``str`` for portability)."""
+
+    project_dir: str
+    analysis_dir: str
+    ecmwf_0100_light: str
+    ecmwf_0100_full: str
+    ecmwf_0125: str
+    land_mask: str
+    classif_wv_cls: str
+    ww3_coloc: str
+
+
+class Config(TypedDict):
+    """Merged top-level configuration (see ``config.yaml`` for defaults)."""
+
+    paths: _Paths
+    calibration: _Calibration
+    gmf: _Gmf
+    satellites: dict[str, str]
 
 #: Directory of the packaged default configuration.
 _PACKAGE_DIR = Path(__file__).parent
@@ -53,7 +98,7 @@ def find_local_config() -> Path | None:
 
 
 @lru_cache(maxsize=1)
-def load_config() -> dict[str, object]:
+def load_config() -> Config:
     """Load the merged configuration (defaults + local override).
 
     The merge is shallow: any top-level key present in the local override
@@ -65,10 +110,10 @@ def load_config() -> dict[str, object]:
         local = _load_yaml(local_path)
         logger.info("Merging local config from %s (keys: %s).", local_path, sorted(local))
         config.update(local)
-    return config
+    return cast("Config", config)
 
 
-def get_config() -> dict[str, object]:
+def get_config() -> Config:
     """Alias of :func:`load_config` for callers that prefer a get_* name."""
     return load_config()
 

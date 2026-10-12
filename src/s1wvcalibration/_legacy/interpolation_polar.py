@@ -6,16 +6,22 @@ Ported from ``graphics/interpolation_polar_spectrum.py``.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING, Literal, cast
 
 import numpy as np
 from scipy import interpolate
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 logger = logging.getLogger(__name__)
 
 __all__ = ["interp_polar_spectrum"]
 
 
-def interp_polar_spectrum(k_out, phi_out, spec_in, k_in, phi_in, order: str = "C"):
+def interp_polar_spectrum(
+    k_out: NDArray, phi_out: NDArray, spec_in: NDArray, k_in: NDArray, phi_in: NDArray, order: str = "C"
+) -> NDArray:
     """Interpolate the input polar spectrum onto the (k_out, phi_out) grid.
 
     Args:
@@ -37,7 +43,7 @@ def interp_polar_spectrum(k_out, phi_out, spec_in, k_in, phi_in, order: str = "C
     phigrid = np.tile(phi_in, (dim[1], 1)).transpose()
     x = (kgrid * np.cos(phigrid * np.pi / 180)).flatten()
     y = (kgrid * np.sin(phigrid * np.pi / 180)).flatten()
-    z = spec_in.flatten(order=order)
+    z = spec_in.flatten(order=cast("Literal['C', 'F']", order))
 
     dimout = (phi_out.size, k_out.size)
     koutgrid = np.tile(k_out, (dimout[0], 1))

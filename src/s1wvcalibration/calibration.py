@@ -24,6 +24,7 @@ import sys
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, cast
 
 import matplotlib as mpl
 
@@ -60,9 +61,9 @@ def _high_lat_threshold() -> int:
     return int(load_config()["calibration"]["high_lat_threshold"])
 
 
-def _wind_ranges() -> dict:
+def _wind_ranges() -> dict[str, int]:
     """Center wind speed (m/s) per sweet-spot (config)."""
-    return {k: int(v) for k, v in load_config()["calibration"]["wind_ranges"].items()}
+    return {k: int(v) for k, v in cast("dict[str, int]", load_config()["calibration"]["wind_ranges"]).items()}
 
 
 def _dev_max_measu() -> int:
@@ -75,7 +76,7 @@ def _time_unit() -> str:
     return str(load_config()["calibration"]["time_unit"])
 
 
-def is_land(lon, lat, dsmask):
+def is_land(lon: float, lat: float, dsmask: xr.Dataset) -> bool:
     """Return ``True`` if the grid point closest to (lon, lat) is land.
 
     Defined for the ``mwf-ers-mask.nc`` land mask.
@@ -99,7 +100,7 @@ class WVcalibrator:
     def AnalyseOneSAFE(
         self,
         in_safe_file: str,
-        msk,
+        msk: xr.Dataset,
         path_out: str,
         max_latitude: int | None = None,
         suffix_output: str = "",
@@ -108,7 +109,7 @@ class WVcalibrator:
         ecmwf_version: str = "0100",
         redo: bool = False,
         dev: bool = False,
-    ):
+    ) -> tuple[dict, bool]:
         """Compute the WV calibration constant from sigma0 and colocated wind.
 
         Args:
@@ -140,9 +141,9 @@ class WVcalibrator:
         elif "SLC" in in_safe_file:
             level = "L1"
             ext = "tiff"
-        cpt_counter = collections.defaultdict(int)
+        cpt_counter: dict[str, int] = collections.defaultdict(int)
         logger.info("input file %s", in_safe_file)
-        self.cpt_wind_bias = collections.defaultdict(int)
+        self.cpt_wind_bias: dict[str, int] = collections.defaultdict(int)
         self.orbit_name = Path(in_safe_file).name
         logger.info("==========================")
         logger.info("Sentinel-1 SAFE file:%s ", self.orbit_name)
@@ -256,15 +257,15 @@ class WVcalibrator:
             _indices_ecmwf_coloc = np.zeros(nb_measurements)
             cpt_not_finite_position = 0
 
-            err = collections.defaultdict(int)
-            cnt = collections.defaultdict(int)
+            err: dict[str, int] = collections.defaultdict(int)
+            cnt: dict[str, int] = collections.defaultdict(int)
             logger.info("Nber of measurements: %s", nb_measurements)
             for ii, in_file_meas in enumerate(measurements):
                 _measu_fname.append(in_file_meas)
-                content: dict = {}
+                content: dict[str, object] = {}
                 content, _errors, _counters = get_classification_infos(in_file_meas, content, err, cnt)
                 if "class_1" in content:
-                    _classification_sar.append(content["class_1"].ljust(3))
+                    _classification_sar.append(str(content["class_1"]).ljust(3))
                 else:
                     _classification_sar.append("   ")
                 if ii % 15 == 0:
@@ -701,7 +702,7 @@ class WVcalibrator:
 
         return final_result, flag_data_available
 
-    def Write2NetCDFWVsentinel1CalValParams3(self):
+    def Write2NetCDFWVsentinel1CalValParams3(self) -> None:
         """Write the calibration parameters to a NetCDF file using xarray."""
         nber = len(self._sig_sar)
         finalpath = self.path_out / self.file_out_netcdf
@@ -847,9 +848,10 @@ class WVcalibrator:
 
 
 def PlotNRCSvsWindPerSafe(
-    _spd_coloc_ecmwf, inc_1_, inc_2_, _cor_wv1, _cor_wv2, orbit_name, sigma0_gmf, _sig_sar,
-    path_out_netcdf, pol, fighandler=None, suffix_output: str | None = None, gmf_name: str | None = None,
-):
+    _spd_coloc_ecmwf: Any, inc_1_: Any, inc_2_: Any, _cor_wv1: float, _cor_wv2: float, orbit_name: str,
+    sigma0_gmf: Any, _sig_sar: Any, path_out_netcdf: Any, pol: str, fighandler: Any = None,
+    suffix_output: str = "", gmf_name: str = "",
+) -> tuple[Path, Any]:
     """Constant calval SAR figure (published aside of the correction constant)."""
     logger.info("NRCS plot Sentinel-1 SAFE file: %s", orbit_name)
     satellite = orbit_name[0:3]
@@ -883,12 +885,12 @@ def PlotNRCSvsWindPerSafe(
 
     file_out = (
         Path(path_out_netcdf)
-        / ("wind_vs_sig_calibrated_" + gmf_name + "_" + orbit_name[:-5] + suffix_output + ".png")
+        / ("wind_vs_sig_calibrated_" + str(gmf_name) + "_" + orbit_name[:-5] + str(suffix_output) + ".png")
     )
     return file_out, fig
 
 
-def SaveNRCSvsWindPlot(file_out, fig, dpi: int = 150):
+def SaveNRCSvsWindPlot(file_out: Path, fig: Any, dpi: int = 150) -> None:
     """Save the NRCS vs wind figure and set group-readable permissions."""
     fig.savefig(file_out, dpi=dpi)
     try:
@@ -897,9 +899,9 @@ def SaveNRCSvsWindPlot(file_out, fig, dpi: int = 150):
         logger.info("cannot change permission on %s", file_out)
 
 
-def sequentialListOfSAfeAnalyse(listSAFE, msk, path_out):
+def sequentialListOfSAfeAnalyse(listSAFE: list[str], msk: xr.Dataset, path_out: str) -> None:
     """Analyse a list of SAFE sequentially (writes NetCDF only, no pickle)."""
-    cptu = collections.defaultdict(int)
+    cptu: dict[str, int] = collections.defaultdict(int)
     logger.info("sequentialListOfSAfeAnalyse | number of safe to analyse %s", len(listSAFE))
     for safe_file in listSAFE:
         clean_safe = safe_file.strip("\n") if "\n" in safe_file else safe_file

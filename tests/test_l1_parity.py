@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import cast
 
 import netCDF4
 import numpy as np
@@ -75,8 +76,8 @@ def measurements():
     return ms[:_N_TEST]
 
 
-def _moments(imag: dict) -> tuple[float, float, float]:
-    i_sq = imag["I"]
+def _moments(imag: dict[str, object]) -> tuple[float, float, float]:
+    i_sq = cast("np.ndarray", imag["I"])
     mu = np.mean(i_sq)
     nv = float(np.mean(np.power((i_sq - mu) / mu, 2)))
     skew = float(np.mean(np.power((i_sq - mu), 3)) / np.power(np.var(i_sq - mu), 1.5))

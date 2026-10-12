@@ -103,9 +103,10 @@ def new():
     path = os.environ.get("S1WVCALIB_E2E_NEW_NC", _DEFAULT_NEW_NC)
     if not Path(path).is_file():
         if os.environ.get("S1WVCALIB_E2E_RUN") and Path(_safe()).is_dir():
-            path = _produce_new_nc()
-            if not path:
+            produced = _produce_new_nc()
+            if not produced:
                 pytest.skip("could not produce the end2end netcdf")
+            path = produced
         else:
             pytest.skip(
                 f"end2end produced netcdf not available ({path}); "

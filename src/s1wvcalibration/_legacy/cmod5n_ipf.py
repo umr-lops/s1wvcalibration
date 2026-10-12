@@ -19,12 +19,17 @@ the new library stays numerically identical to the current production.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 __all__ = ["cmod5n_legacy"]
 
 
-def cmod5n_legacy(v, phi, theta) -> np.ndarray:
+def cmod5n_legacy(v: NDArray, phi: NDArray, theta: NDArray) -> NDArray:
     """Legacy CMOD5_N (batch-corrected) linear backscatter.
 
     Args:

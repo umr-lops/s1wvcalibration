@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 import numpy as np
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 __all__ = ["get_polarization_ratio"]
 
 
-def get_polarization_ratio(u10, inc, phi=None, name: str = "mouche1"):
+def get_polarization_ratio(u10: NDArray, inc: NDArray, phi: Any = None, name: str = "mouche1") -> NDArray:
     """HH/VV polarization ratio used to convert the VV GMF to HH.
 
     Args:

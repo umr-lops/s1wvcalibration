@@ -55,7 +55,9 @@ def _rejeu_2016_dirs() -> dict:
     return {"S1A": {k: coloc / v for k, v in s1a.items()}, "S1B": {k: coloc / v for k, v in s1b.items()}}
 
 
-def get_ww3spectra_l2_filepath(measu_filepath: str, use_new_procedure: str | None = None):
+def get_ww3spectra_l2_filepath(
+    measu_filepath: str, use_new_procedure: str | None = None
+) -> tuple[str, str]:
     """Return ``(filepath, procedure)`` of the colocated WW3 spectra netCDF.
 
     Args:

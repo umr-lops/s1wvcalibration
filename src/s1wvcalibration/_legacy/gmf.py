@@ -33,11 +33,16 @@ PARITY NOTES
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 import numpy as np
 from xsarsea.windspeed import get_model
 from xsarsea.windspeed.gmfs_impl import gmf_cmodifr2
 
 from .cmod5n_ipf import cmod5n_legacy
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 __all__ = [
     "cmod5",
@@ -49,19 +54,19 @@ __all__ = [
 ]
 
 
-def _to_linear_ndarray(x) -> np.ndarray:
+def _to_linear_ndarray(x: Any) -> NDArray:
     """Convert a model output (xarray.DataArray / ndarray / scalar) to a float ndarray."""
     if hasattr(x, "values"):
         x = x.values
     return np.asarray(x, dtype=np.float64)
 
 
-def get_cmod5n():
+def get_cmod5n() -> Any:
     """Return the xsarsea CMOD5_N (neutral wind) model object."""
     return get_model("cmod5n")
 
 
-def cmod5n_xsarsea(v, phi, theta) -> np.ndarray:
+def cmod5n_xsarsea(v: NDArray, phi: NDArray, theta: NDArray) -> NDArray:
     """Standard CMOD5_N (element-wise clamp) linear backscatter via xsarsea.
 
     Args:
@@ -75,7 +80,7 @@ def cmod5n_xsarsea(v, phi, theta) -> np.ndarray:
     return _to_linear_ndarray(res)
 
 
-def cmod5n_forward(v, phi, theta) -> np.ndarray:
+def cmod5n_forward(v: NDArray, phi: NDArray, theta: NDArray) -> NDArray:
     """CMOD5_N as used by the current production (legacy, batch-corrected).
 
     This is the value written in the operational ``sig_mod``. See
@@ -86,7 +91,7 @@ def cmod5n_forward(v, phi, theta) -> np.ndarray:
     return cmod5n_legacy(v, phi, theta)
 
 
-def cmod5(v, phi, theta) -> np.ndarray:
+def cmod5(v: NDArray, phi: NDArray, theta: NDArray) -> NDArray:
     """CMOD5 linear backscatter (xsarsea).
 
     Args:
@@ -99,7 +104,7 @@ def cmod5(v, phi, theta) -> np.ndarray:
     return _to_linear_ndarray(res)
 
 
-def cmod_ifr2(inc, v, phi) -> np.ndarray:
+def cmod_ifr2(inc: NDArray, v: NDArray, phi: NDArray) -> NDArray:
     """CMOD-IFR2 linear backscatter.
 
     Verified exactly equal to the legacy ``cmod_ifremer.cmod_ifr2`` (max diff

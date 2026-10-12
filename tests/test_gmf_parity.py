@@ -48,6 +48,8 @@ def _legacy_dir() -> Path:
 def _load(name: str, filename: str):
     path = _legacy_dir() / filename
     spec = importlib.util.spec_from_file_location(name, path)
+    assert spec is not None
+    assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

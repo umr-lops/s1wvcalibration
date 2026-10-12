@@ -10,18 +10,19 @@ from .small_methods import decode_ecmwf_uv_if_necessary
 
 if TYPE_CHECKING:
     import pandas as pd
+    from numpy.typing import NDArray
 
 
-def unit_vector(vector):
+def unit_vector(vector: NDArray) -> NDArray:
     """Return the unit vector of *vector*."""
     return vector / np.linalg.norm(vector)
 
 
-def angle_between(v1, v2):
+def angle_between(v1: NDArray, v2: NDArray) -> float:
     """Return the angle in radians between vectors *v1* and *v2*."""
     v1_u = unit_vector(v1)
     v2_u = unit_vector(v2)
-    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+    return float(np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0)))
 
 
 def wave_direction_comparison_s1_ww3(df: pd.DataFrame) -> pd.DataFrame:
@@ -50,7 +51,7 @@ def wind_direction_comparison_s1_ecmwf(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def wind_direction_comparison_core(wdir1, wdir2, trigotrick: bool = False):
+def wind_direction_comparison_core(wdir1: NDArray, wdir2: NDArray, trigotrick: bool = False) -> NDArray:
     """Angle difference (deg) between two direction vectors (0..pi)."""
     u1 = np.cos(np.radians(wdir1))
     v1 = np.sin(np.radians(wdir1))

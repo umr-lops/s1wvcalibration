@@ -6,18 +6,23 @@ Only the symbols used by the 2D-cutoff chain are ported.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import numpy as np
+    from numpy.typing import NDArray
 
 logger = logging.getLogger(__name__)
 
 __all__ = ["get_low_frequencies_mask", "get_low_frequencies_mask_core"]
 
 
-def get_low_frequencies_mask_core(partitions):
+def get_low_frequencies_mask_core(partitions: NDArray) -> NDArray[np.bool_]:
     """Boolean mask of low-frequency bins (partition value -1)."""
     return partitions == -1
 
 
-def get_low_frequencies_mask(handler):
+def get_low_frequencies_mask(handler: Any) -> NDArray[np.bool_]:
     """Return the 2D (phi, k) low-frequency mask from a netCDF handler."""
     partitions = handler.variables["oswPartitions"][:].squeeze()
     mat_low = get_low_frequencies_mask_core(partitions)
