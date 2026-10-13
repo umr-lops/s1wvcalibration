@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from pathlib import Path
 
 from s1wvcalibration._legacy.hs_2d_cutoff import get_WV_2D_cutoff
@@ -36,7 +37,7 @@ def _spec(k: np.ndarray, peak_k: float = 0.2, width: float = 0.04) -> np.ndarray
     return np.tile(prof, (PHI.size, 1))
 
 
-def _make_ocn_nc(path, lowfreq: bool = False):
+def _make_ocn_nc(path: Path, lowfreq: bool = False) -> None:
     ds = nc.Dataset(str(path), "w", format="NETCDF4")
     ds.createDimension("phi", PHI.size)
     ds.createDimension("k", K.size)
@@ -61,7 +62,7 @@ def _make_ocn_nc(path, lowfreq: bool = False):
     ds.close()
 
 
-def _make_ww3_nc(path):
+def _make_ww3_nc(path: Path) -> None:
     ds = nc.Dataset(str(path), "w", format="NETCDF4")
     ds.createDimension("phi", 36)
     ds.createDimension("k", 24)
@@ -127,7 +128,7 @@ def test_s1_hs_eff_2d_cutoff(tmp_path):
     assert swh_eff > 0.0
     # the k-peak of the spectrum lies within [min(K), max(K)]
     assert np.isfinite(wl)
-    assert 2 * np.pi / K.max() <= wl <= 2 * np.pi / K.min()
+    assert 2 * np.pi / np.max(K) <= wl <= 2 * np.pi / np.min(K)
 
 
 def test_s1_hs_eff_2d_masked_azcutoff(tmp_path):
@@ -170,7 +171,9 @@ def test_ww3_hs_eff_2d_cutoff(tmp_path):
 
 
 @pytest.fixture
-def ww3_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+def ww3_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Generator[Path, None, None]:
     root = tmp_path / "coloc"
     root.mkdir()
     cfg = tmp_path / "override.yaml"

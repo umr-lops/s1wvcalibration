@@ -18,7 +18,7 @@ from s1wvcalibration._legacy.find_colocated_ecmwf_file import (
 _UTC = timezone.utc
 
 
-def _make_light_nc(path):
+def _make_light_nc(path: Path) -> None:
     ds = nc.Dataset(str(path), "w", format="NETCDF4")
     ds.createDimension("time", 1)
     ds.createDimension("lat", 4)
@@ -89,7 +89,7 @@ def test_findfile_from_timestamp(tmp_path):
     assert "/2020/167/" in path  # day of year for 2020-06-15
 
 
-def _make_cep_nc(path):
+def _make_cep_nc(path: Path) -> None:
     ds = nc.Dataset(str(path), "w", format="NETCDF4")
     ds.latitude_resolution = 1.0
     ds.southernmost_latitude = 0.0

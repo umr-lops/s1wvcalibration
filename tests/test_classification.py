@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import collections
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 from s1wvcalibration._legacy.classif_xml import read_xml_classif_ID
 from s1wvcalibration._legacy.classification import (
@@ -40,7 +44,9 @@ def _xml_path_for(safe: str) -> Path:
 
 
 @pytest.fixture
-def classif_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+def classif_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Generator[Path, None, None]:
     root = tmp_path / "classif"
     root.mkdir()
     cfg = tmp_path / "override.yaml"
@@ -111,8 +117,8 @@ def test_classification_found(classif_root, tmp_path):  # noqa: ARG001  # side-e
     xml.parent.mkdir(parents=True)
     xml.write_text(_XML)
     content: dict[str, object] = {}
-    errors = collections.defaultdict(int)
-    counters = collections.defaultdict(int)
+    errors: dict[str, int] = collections.defaultdict(int)
+    counters: dict[str, int] = collections.defaultdict(int)
     content, errors, counters = get_classification_infos(
         str(measu), content, errors, counters
     )
@@ -128,8 +134,8 @@ def test_classification_missing_imagette(classif_root, tmp_path):  # noqa: ARG00
     xml.parent.mkdir(parents=True)
     xml.write_text(_XML.replace("<id>1", "<id>999"))
     content: dict[str, object] = {}
-    errors = collections.defaultdict(int)
-    counters = collections.defaultdict(int)
+    errors: dict[str, int] = collections.defaultdict(int)
+    counters: dict[str, int] = collections.defaultdict(int)
     get_classification_infos(str(measu), content, errors, counters)
     assert errors["classif_missing_imagette"] == 1
     assert content["class_1"] == " "
@@ -142,8 +148,8 @@ def test_classification_empty_xml(classif_root, tmp_path):  # noqa: ARG001  # si
     xml.parent.mkdir(parents=True)
     xml.write_text("")  # zero bytes
     content: dict[str, object] = {}
-    errors = collections.defaultdict(int)
-    counters = collections.defaultdict(int)
+    errors: dict[str, int] = collections.defaultdict(int)
+    counters: dict[str, int] = collections.defaultdict(int)
     get_classification_infos(str(measu), content, errors, counters)
     assert errors["classification_file_empty"] == 1
 
@@ -152,8 +158,8 @@ def test_classification_no_xml(classif_root, tmp_path):  # noqa: ARG001  # side-
     measu = _measu_path(tmp_path)
     measu.write_text("")
     content: dict[str, object] = {}
-    errors = collections.defaultdict(int)
-    counters = collections.defaultdict(int)
+    errors: dict[str, int] = collections.defaultdict(int)
+    counters: dict[str, int] = collections.defaultdict(int)
     get_classification_infos(str(measu), content, errors, counters)
     assert errors["no_classification"] == 1
     assert content["class_1"] == " "
@@ -191,8 +197,8 @@ def test_classification_safe_granularity_found():
         row[tag] = 0.0
     data_from_xml["1"] = row
     content: dict[str, object] = {}
-    errors = collections.defaultdict(int)
-    counters = collections.defaultdict(int)
+    errors: dict[str, int] = collections.defaultdict(int)
+    counters: dict[str, int] = collections.defaultdict(int)
     get_classification_infos_safe_granularity(
         f"SAFE/measurement/{MEASU_NAME}", data_from_xml, content, errors, counters
     )
@@ -204,8 +210,8 @@ def test_classification_safe_granularity_missing():
     # imagette "1" not present in the dict
     data_from_xml: dict[str, object] = {}
     content: dict[str, object] = {}
-    errors = collections.defaultdict(int)
-    counters = collections.defaultdict(int)
+    errors: dict[str, int] = collections.defaultdict(int)
+    counters: dict[str, int] = collections.defaultdict(int)
     get_classification_infos_safe_granularity(
         f"SAFE/measurement/{MEASU_NAME}", data_from_xml, content, errors, counters
     )

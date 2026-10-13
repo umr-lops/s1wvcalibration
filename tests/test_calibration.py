@@ -175,10 +175,10 @@ def l2_safe(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
     # colocated WW3 spectra (created where the locator expects it)
     for p in meas_paths:
-        fp, _ = get_ww3spectra_l2_filepath(str(p), use_new_procedure=None)
-        fp = Path(fp)
-        fp.parent.mkdir(parents=True, exist_ok=True)
-        _make_ww3(fp)
+        ww3_fp, _ = get_ww3spectra_l2_filepath(str(p), use_new_procedure=None)
+        ww3_path = Path(ww3_fp)
+        ww3_path.parent.mkdir(parents=True, exist_ok=True)
+        _make_ww3(ww3_path)
 
     # colocated ECMWF light field at the path findfile() resolves
     date_sar1 = datetime(2020, 1, 1, 0, 0, tzinfo=_UTC)
