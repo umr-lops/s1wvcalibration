@@ -899,7 +899,11 @@ class WVcalibrator:
         )
         data_vars["doppler_centroid_quality"] = (
             ("number_of_wm_acq",),
-            self._quality_doppler_centroid.astype(np.int8),
+            # The legacy wrote this float array into a netCDF4 byte variable,
+            # where unavailable (NaN, e.g. OCN SAFEs) became 0. Reproduce that
+            # explicitly: a bare .astype(np.int8) of NaN warns (and errors
+            # under -Werror) and is not guaranteed to yield 0.
+            np.nan_to_num(self._quality_doppler_centroid, nan=0.0).astype(np.int8),
             {
                 "descr": "True means the RMS of doppler centroid fit with estimates is below the threshold"
             },
