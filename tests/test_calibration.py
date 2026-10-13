@@ -22,12 +22,7 @@ from s1wvcalibration._legacy.ecmwf0100 import findfile
 from s1wvcalibration._legacy.ww3_spectra import get_ww3spectra_l2_filepath
 from s1wvcalibration.config import CONFIG_ENV_VAR, reset_config_cache
 
-# is_land() calls DataArray.argmin/argmax() without an axis; recent xarray
-# emits a FutureWarning about the (future) dict-of-indices behaviour. The
-# behaviour is unchanged for our use, so ignore it (the suite runs
-# filterwarnings=error).
 pytestmark = [
-    pytest.mark.filterwarnings("ignore:Behaviour of argmin/argmax:FutureWarning"),
     # a sub-swath can legitimately have no points in the SWH/WW3 filter; the
     # legacy code means over an empty slice -> NaN. Keep the (parity) behaviour.
     pytest.mark.filterwarnings("ignore:Mean of empty slice:RuntimeWarning"),

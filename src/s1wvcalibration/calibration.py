@@ -93,8 +93,12 @@ def is_land(lon: float, lat: float, dsmask: xr.Dataset) -> bool:
     """
     lons = dsmask.longitude
     lats = dsmask.latitude
-    lon_idx = np.abs(lons - lon).argmin()
-    lat_idx = np.abs(lats - lat).argmin()
+    # Nearest grid-point index. Call argmin on the raw values: DataArray.argmin()
+    # with no dim/axis is deprecated (and will change to return a dict of per-
+    # dim indices), which would break this and, under a warnings-as-errors suite,
+    # raise instead of computing the index.
+    lon_idx = int(np.argmin(np.abs(lons.values - lon)))
+    lat_idx = int(np.argmin(np.abs(lats.values - lat)))
     flag = dsmask.quality_flag.isel(longitude=lon_idx, latitude=lat_idx).item()
     return flag != 0
 
