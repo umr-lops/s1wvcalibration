@@ -85,6 +85,9 @@ filterwarnings = [
   # that are outside our control; do not fail the suite on them.
   "ignore:dropping variables using `drop` is deprecated:FutureWarning",
   "ignore:Casting complex values to real discards the imaginary part:Warning",
+  # pandas import triggers this under NumPy 2 (freshly resolved on some
+  # platforms, e.g. python 3.12); it is emitted inside pandas, not us.
+  "ignore:The 'generic' unit for NumPy timedelta is deprecated:DeprecationWarning",
 ]
 log_level = "INFO"
 testpaths = [
