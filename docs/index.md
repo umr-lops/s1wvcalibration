@@ -24,8 +24,8 @@ offset between the model and SAR points is the calibration constant.
 :alt: NRCS vs wind speed for a Sentinel-1 WV SAFE (illustrative)
 ```
 
-*Illustrative figure (synthetic SAR points around the real xsarsea CMOD5n
-curve); the operational figure uses the measured imagettes of the SAFE.*
+_Illustrative figure (synthetic SAR points around the real xsarsea CMOD5n
+curve); the operational figure uses the measured imagettes of the SAFE._
 
 ## Indices and tables
 
