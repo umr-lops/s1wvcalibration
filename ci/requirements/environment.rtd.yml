@@ -1,0 +1,22 @@
+# Conda-forge base environment for the Read the Docs build.
+#
+# Same recipe as the CI checks job (environment.yaml): the geospatial stack
+# (GDAL, dask, xarray, ...) must come from conda-forge where GDAL is prebuilt.
+# `xsar` / `xsarsea` are NOT on conda-forge, so they are pip-installed in
+# `.readthedocs.yaml` after this env is created (pip sees the conda GDAL as
+# already satisfied and does not try to rebuild it from source).
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - gdal
+  - dask
+  - xarray
+  - numpy
+  - scipy
+  - matplotlib
+  - netcdf4
+  - h5netcdf
+  - h5py
+  - pyyaml

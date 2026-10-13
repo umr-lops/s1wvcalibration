@@ -1,16 +1,24 @@
 # Read the Docs configuration file
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+#
+# Conda build (not uv): the project runtime deps pull GDAL (via xsar/xsarsea),
+# which cannot be built from source on RTD. The conda-forge base env provides a
+# prebuilt GDAL, and pip then installs xsar/xsarsea + the docs group on top,
+# mirroring the CI checks job recipe (ci/requirements/environment.rtd.yml).
 
 version: 2
 
 build:
   os: ubuntu-24.04
-  tools:
-    python: "3.13"
+  conda:
+    environment: ci/requirements/environment.rtd.yml
+  python:
+    install:
+      - method: none
   commands:
-    - asdf plugin add uv
-    - asdf install uv latest
-    - asdf global uv latest
-    - uv sync --group docs
-    - uv run python -m sphinx -T -b html -d docs/_build/doctrees -D language=en
-      docs $READTHEDOCS_OUTPUT/html
+    - pip install "xsar[s1]" xsarsea
+    - pip install -e . --no-deps
+    - pip install "sphinx>=7.0" "myst_parser>=0.13" sphinx_copybutton
+      sphinx_autodoc_typehints "furo>=2023.08.17"
+    - sphinx-build -T -b html -d docs/_build/doctrees -D language=en docs
+      $READTHEDOCS_OUTPUT/html
