@@ -47,7 +47,7 @@ from ._legacy.polarization_ratio import get_polarization_ratio
 from ._legacy.wind_bias import wind_plages, wind_pref_directions
 from ._legacy.ww3_spectra import get_ww3spectra_l2_filepath
 from ._legacy.xsar_reader import read_slc_imagette
-from .config import load_config
+from .config import data_path, load_config
 
 logger = logging.getLogger(__name__)
 
@@ -1313,13 +1313,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.output is not None:
         path_out = args.output
     else:
-        analysis_dir = Path(load_config()["paths"]["analysis_dir"])
+        analysis_dir = Path(data_path("analysis_dir"))
         path_out = analysis_dir / "L1_v16/WV/" / (satellite_acro + "_WV_SLC__1S")
         if "OCN" in in_safe_file:
             path_out = analysis_dir / "L2/WV/" / (satellite_acro + "_WV_OCN__2S")
         logger.info("default output dir (from config analysis_dir): %s", path_out)
 
-    land_mask = Path(load_config()["paths"]["land_mask"])
+    land_mask = Path(data_path("land_mask"))
     msk = xr.open_dataset(land_mask / "mwf-ers-mask.nc")
     instance = WVcalibrator()
 

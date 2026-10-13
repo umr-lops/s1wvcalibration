@@ -12,7 +12,7 @@ import logging
 from datetime import timezone
 from pathlib import Path
 
-from s1wvcalibration.config import load_config
+from s1wvcalibration.config import data_path
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ _UTC = timezone.utc
 
 
 def _classif_root() -> str:
-    return str(load_config()["paths"]["classif_wv_cls"])
+    return data_path("classif_wv_cls")
 
 
 def get_xml_path_from_measu(full_path_measu: str) -> str | None:

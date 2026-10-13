@@ -12,7 +12,7 @@ import logging
 from datetime import timezone
 from pathlib import Path
 
-from s1wvcalibration.config import load_config
+from s1wvcalibration.config import data_path, load_config
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ def _satellite_name(sat_acro: str) -> str:
 
 
 def _ww3_coloc_dir() -> str:
-    return str(load_config()["paths"]["ww3_coloc"])
+    return data_path("ww3_coloc")
 
 
 def _rejeu_2016_dirs() -> dict:
@@ -88,7 +88,8 @@ def get_ww3spectra_l2_filepath(
         procedure_coloc = "run_ope_satglob"
         logger.debug("enter patch new procedure")
         directo = Path(
-            f"/home/cercache/users/agrouaze/temporaire/sentinel1/coloc/new_recomposition_ww3spectra_{yearmonth}",
+            data_path("ww3_satglob"),
+            f"new_recomposition_ww3spectra_{yearmonth}",
             basename[:3].upper(),
             "L2/",
         )

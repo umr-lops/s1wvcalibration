@@ -15,7 +15,7 @@ from pathlib import Path
 import netCDF4 as nc
 import numpy as np
 
-from s1wvcalibration.config import load_config
+from s1wvcalibration.config import data_path
 
 logger = logging.getLogger(__name__)
 
@@ -77,9 +77,9 @@ def findfile(
     """
     logger.debug("fltdate = %s val= %s", type(fltdate), fltdate)
     if path_light is None:
-        path_light = str(load_config()["paths"]["ecmwf_0100_light"])
+        path_light = data_path("ecmwf_0100_light")
     if path_full is None:
-        path_full = str(load_config()["paths"]["ecmwf_0100_full"])
+        path_full = data_path("ecmwf_0100_full")
 
     if isinstance(fltdate, float):  # case timestamp (epoch seconds -> UTC)
         date = dt.datetime.fromtimestamp(fltdate, tz=_UTC)
