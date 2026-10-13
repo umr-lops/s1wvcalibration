@@ -12,6 +12,11 @@ version: 2
 
 build:
   os: ubuntu-24.04
+  tools:
+    # A conda variant is required for RTD to actually create/activate the
+    # `conda.environment` below; with a plain python (or none) RTD skips the
+    # conda setup entirely and `pip` is not found when the commands run.
+    python: "mambaforge-latest"
   commands:
     - pip install "xsar[s1]" xsarsea
     - pip install -e . --no-deps
