@@ -1,0 +1,59 @@
+Bootstrap: docker
+From: continuumio/miniconda3:4.12.0
+
+%environment
+    export LANG=C.UTF-8
+    export LC_ALL=C.UTF-8
+    export PYTHONDONTWRITEBYTECODE=1
+    export PYTHONUNBUFFERED=1
+    export PATH="/opt/conda/bin:/opt/conda/envs/s1wvcalibration/bin:${PATH}"
+
+%files
+    pyproject.toml /opt/s1wvcalibration/
+    README.md /opt/s1wvcalibration/
+    src/s1wvcalibration /opt/s1wvcalibration/src/s1wvcalibration
+
+%post
+    set -e
+
+    export DEBIAN_FRONTEND=noninteractive
+    export PATH="/opt/conda/bin:${PATH}"
+
+    apt-get update && apt-get install -y --no-install-recommends \
+        curl git wget bzip2 tar ca-certificates \
+        && rm -rf /var/lib/apt/lists/*
+
+    # config compatible vieille conda
+    conda config --remove-key channels || true
+    conda config --add channels conda-forge
+    conda config --set channel_priority strict
+    conda config --set always_yes yes
+    conda config --set changeps1 no
+
+    # Le stack geospatial (GDAL prebuilt, dask, xarray) doit venir de
+    # conda-forge; xsar/xsarsea ne sont PAS sur conda-forge et sont
+    # installees en pip (pip ne retouche pas le GDAL conda deja satisfait).
+    conda create \
+        --override-channels \
+        -c conda-forge \
+        -n s1wvcalibration \
+        python=3.12 pip gdal dask xarray numpy scipy matplotlib \
+        netcdf4 h5netcdf h5py pyyaml
+
+    conda run -n s1wvcalibration pip install --no-cache-dir "xsar[s1]" xsarsea
+
+    cd /opt/s1wvcalibration
+
+    conda run -n s1wvcalibration pip install --no-cache-dir -e . --no-deps
+
+    conda run -n s1wvcalibration python -c \
+        "import s1wvcalibration; print('s1wvcalibration import ok:', s1wvcalibration.__version__)"
+
+    conda clean -afy
+
+%runscript
+    exec conda run -n s1wvcalibration s1wvcalib "$@"
+
+%labels
+    Author s1wvcalibration
+    Base continuumio/miniconda3:4.12.0
