@@ -5,28 +5,38 @@
 # installed anywhere and pointed at the right data with a local override.
 #
 # A user-site ``localconfig.yaml`` (see ``config.py``) can override any key
-# without touching this file. Keys are merged shallowly: a top-level key in the
-# override replaces the whole sub-mapping.
+# without touching this file. Merging is deep: a mapping in the override is
+# merged into the default mapping key by key, so overriding only
+# ``paths.root_directory`` keeps the other path defaults.
 
 # ---------------------------------------------------------------------------
 # Data locations
 # ---------------------------------------------------------------------------
+# Every data location is expressed *relative* to ``root_directory`` (the single
+# machine-specific value). To move the library to another cluster, override only
+# ``root_directory`` in a ``localconfig.yaml`` (or ``$S1WVCALIB_CONFIG``); the
+# relative sub-paths below stay unchanged. A sub-path may also be given as an
+# absolute path to escape the root when a location does not follow the layout.
 paths:
-  # Root of the MPC-Sentinel1 project tree (datarmor legacy).
-  project_dir: /home/datawork-cersat-public/cache/project/mpc-sentinel1
+  # Root of the data tree (datarmor layout). Override this for other clusters.
+  root_directory: /home/datawork-cersat-public
+  # Root of the MPC-Sentinel1 project tree.
+  project_dir: cache/project/mpc-sentinel1
   # Where the per-SAFE NetCDF calibration files are written.
-  analysis_dir: /home/datawork-cersat-public/cache/project/mpc-sentinel1/analysis/s1_data_analysis
+  analysis_dir: cache/project/mpc-sentinel1/analysis/s1_data_analysis
   # ECMWF 0.100 deg hourly wind fields (nomenclature: light or full).
-  ecmwf_0100_light: /home/datawork-cersat-public/provider/ecmwf/forecast/hourly/0100deg/netcdf_light
-  ecmwf_0100_full: /home/datawork-cersat-public/provider/ecmwf/forecast/hourly/0100deg/netcdf_full
+  ecmwf_0100_light: provider/ecmwf/forecast/hourly/0100deg/netcdf_light
+  ecmwf_0100_full: provider/ecmwf/forecast/hourly/0100deg/netcdf_full
   # ECMWF 0.125 deg 3-hourly wind fields (METEOFRANCE_CEP_*.nc).
-  ecmwf_0125: /home/datawork-cersat-public/archive/provider/ecmwf/model/forecast_0125/netcdf
+  ecmwf_0125: archive/provider/ecmwf/model/forecast_0125/netcdf
   # Land mask (mwf-ers-mask.nc lives in this directory).
-  land_mask: /home/datawork-cersat-public/cache/public/ftp/project/landmask
+  land_mask: cache/public/ftp/project/landmask
   # Deep-learning WV texture classification (DL_Summary.xml per date).
-  classif_wv_cls: /home/datawork-cersat-public/cache/public/ftp/project/deeplearning
+  classif_wv_cls: cache/public/ftp/project/deeplearning
   # WW3 spectra colocated with L2 S1 (for significant-wave-height bias).
-  ww3_coloc: /home/datawork-cersat-public/cache/project/mpc-sentinel1/data/colocation
+  ww3_coloc: cache/project/mpc-sentinel1/data/colocation
+  # "SATGLOB" WW3 reconstruction output (L2, non-default procedure).
+  ww3_satglob: /home/cercache/users/agrouaze/temporaire/sentinel1/coloc
 
 # ---------------------------------------------------------------------------
 # Calibration parameters

@@ -45,19 +45,33 @@ import netCDF4
 import numpy as np
 import pytest
 
+from s1wvcalibration.config import data_path
+
 logger = logging.getLogger(__name__)
 
-_DEFAULT_SAFE = (
-    "/legacy/project/cersat/public/cache/project/mpc-sentinel1/data/esa/sentinel-1d/"
-    "L1/WV/S1D_WV_SLC__1S/2026/093/"
-    "S1D_WV_SLC__1SSV_20260403T111410_20260403T114853_002181_00378E_9153.SAFE"
-)
-_DEFAULT_REF_NC = (
-    "/legacy/project/cersat/public/cache/project/mpc-sentinel1/analysis/s1_data_analysis/"
-    "L1_v16/WV/S1D_WV_SLC__1S/2026/093/"
-    "S1D_WV_SLC__1SSV_20260403T111410_20260403T114853_002181_00378E_9153.SAFE/"
-    "calib/S1D_WV_SLC__1SSV_20260403T111410_20260403T114853_002181_00378E_9153.SAFE.nc"
-)
+_SAFE_NAME = "S1D_WV_SLC__1SSV_20260403T111410_20260403T114853_002181_00378E_9153.SAFE"
+
+
+def _default_safe() -> str:
+    """Default raw SAFE location, derived from the config ``project_dir``."""
+    return str(
+        Path(data_path("project_dir"))
+        / "data/esa/sentinel-1d/L1/WV/S1D_WV_SLC__1S/2026/093"
+        / _SAFE_NAME
+    )
+
+
+def _default_ref_nc() -> str:
+    """Default production NetCDF, derived from the config ``analysis_dir``."""
+    return str(
+        Path(data_path("analysis_dir"))
+        / "L1_v16/WV/S1D_WV_SLC__1S/2026/093"
+        / _SAFE_NAME
+        / "calib"
+        / f"{_SAFE_NAME}.nc"
+    )
+
+
 _DEFAULT_NEW_NC = (
     "/tmp/opencode/e2e_full/2026/093/"
     "S1D_WV_SLC__1SSV_20260403T111410_20260403T114853_002181_00378E_9153.SAFE/"
@@ -71,11 +85,11 @@ _COL_LOC_N_BAD = 3  # max imagettes allowed to differ in wind colocation
 
 
 def _ref_nc() -> str:
-    return os.environ.get("S1WVCALIB_E2E_REF_NC", _DEFAULT_REF_NC)
+    return os.environ.get("S1WVCALIB_E2E_REF_NC", _default_ref_nc())
 
 
 def _safe() -> str:
-    return os.environ.get("S1WVCALIB_L1_SAFE", _DEFAULT_SAFE)
+    return os.environ.get("S1WVCALIB_L1_SAFE", _default_safe())
 
 
 def _produce_new_nc() -> str | None:

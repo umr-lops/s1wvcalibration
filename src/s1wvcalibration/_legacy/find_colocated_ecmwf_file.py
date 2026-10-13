@@ -10,7 +10,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from s1wvcalibration.config import load_config
+from s1wvcalibration.config import data_path
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ def find_colocated_ecmwf_file(
     res: dict = {"status": 0, "filename": None}
 
     if path_wind is None:
-        path_wind = str(load_config()["paths"]["ecmwf_0125"])
+        path_wind = data_path("ecmwf_0125")
     path_wind_p = Path(path_wind)
     logger.debug("path_wind : %s", path_wind)
     if hour_step is None:

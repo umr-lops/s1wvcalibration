@@ -10,13 +10,15 @@ The reference (float32) is the target, so the tolerances are set to float32
 rounding. Measured on S1D ... 00378E_9153: every quantity agrees to well below
 1e-4 relative / 1e-4 dB.
 
-Data (override with env vars, defaults = the HPC checkout used to develop this):
+Data (override with env vars):
 
 * ``S1WVCALIB_L1_SAFE``  : full path of the raw ``....SAFE`` (with measurement/).
 * ``S1WVCALIB_L1_REF_NC``: the production NetCDF ``calib/....SAFE.nc``.
 
-If either is missing the tests are skipped, so the suite still runs on a clean
-CI checkout.
+When unset, the defaults are derived from the config's ``root_directory``
+(see ``config.yaml``), so the same tests find the data on whichever cluster the
+config points at -- no machine-specific path is hardcoded here. If the data is
+missing the tests are skipped, so the suite still runs on a clean CI checkout.
 """
 
 from __future__ import annotations
@@ -30,29 +32,40 @@ import numpy as np
 import pytest
 
 from s1wvcalibration._legacy.xsar_reader import read_slc_imagette
-
-_DEFAULT_SAFE = (
-    "/legacy/project/cersat/public/cache/project/mpc-sentinel1/data/esa/sentinel-1d/"
-    "L1/WV/S1D_WV_SLC__1S/2026/093/"
-    "S1D_WV_SLC__1SSV_20260403T111410_20260403T114853_002181_00378E_9153.SAFE"
-)
-_DEFAULT_REF_NC = (
-    "/legacy/project/cersat/public/cache/project/mpc-sentinel1/analysis/s1_data_analysis/"
-    "L1_v16/WV/S1D_WV_SLC__1S/2026/093/"
-    "S1D_WV_SLC__1SSV_20260403T111410_20260403T114853_002181_00378E_9153.SAFE/"
-    "calib/S1D_WV_SLC__1SSV_20260403T111410_20260403T114853_002181_00378E_9153.SAFE.nc"
-)
+from s1wvcalibration.config import data_path
 
 # How many imagettes to check (keep the test cheap; the SAFE has 143).
 _N_TEST = 3
 
+_SAFE_NAME = "S1D_WV_SLC__1SSV_20260403T111410_20260403T114853_002181_00378E_9153.SAFE"
+
+
+def _default_safe() -> str:
+    """Default raw SAFE location, derived from the config ``project_dir``."""
+    return str(
+        Path(data_path("project_dir"))
+        / "data/esa/sentinel-1d/L1/WV/S1D_WV_SLC__1S/2026/093"
+        / _SAFE_NAME
+    )
+
+
+def _default_ref_nc() -> str:
+    """Default production NetCDF, derived from the config ``analysis_dir``."""
+    return str(
+        Path(data_path("analysis_dir"))
+        / "L1_v16/WV/S1D_WV_SLC__1S/2026/093"
+        / _SAFE_NAME
+        / "calib"
+        / f"{_SAFE_NAME}.nc"
+    )
+
 
 def _safe_path() -> str:
-    return os.environ.get("S1WVCALIB_L1_SAFE", _DEFAULT_SAFE)
+    return os.environ.get("S1WVCALIB_L1_SAFE", _default_safe())
 
 
 def _ref_nc() -> str:
-    return os.environ.get("S1WVCALIB_L1_REF_NC", _DEFAULT_REF_NC)
+    return os.environ.get("S1WVCALIB_L1_REF_NC", _default_ref_nc())
 
 
 def _data_available() -> bool:
