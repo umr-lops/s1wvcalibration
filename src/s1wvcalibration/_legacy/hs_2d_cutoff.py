@@ -8,17 +8,23 @@ overwritten by the one read from the netCDF handler.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from .low_frequency_energy import get_low_frequencies_mask
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 logger = logging.getLogger(__name__)
 
 __all__ = ["get_WV_2D_cutoff"]
 
 
-def get_WV_2D_cutoff(handlerNC, lowfreqfilter: bool = True, plot_dev: bool = False):
+def get_WV_2D_cutoff(
+    handlerNC: Any, lowfreqfilter: bool = True, plot_dev: bool = False
+) -> tuple[Any, NDArray, NDArray]:
     """Return the mask to filter out the SAR azimuth/range cut-off.
 
     Args:
@@ -31,13 +37,17 @@ def get_WV_2D_cutoff(handlerNC, lowfreqfilter: bool = True, plot_dev: bool = Fal
         value can be kept.
     """
     mask_eff = None
-    logger.debug("enter get_WV_2D_cutoff lowfreqfilter %s plot_dev %s", lowfreqfilter, plot_dev)
+    logger.debug(
+        "enter get_WV_2D_cutoff lowfreqfilter %s plot_dev %s", lowfreqfilter, plot_dev
+    )
     s1a_spec = handlerNC.variables["oswPolSpec"][:].squeeze()
     k_sar = handlerNC.variables["oswK"][:]
     k_cutoff = 2 * np.pi / handlerNC.variables["oswAzCutoff"][0][0]
     k_eff = 2 * np.pi / handlerNC.variables["oswSpecRes"][:].squeeze()
     if isinstance(k_eff, np.ma.core.MaskedConstant):
-        logger.info("compute_2D_cutoff|corrupted file containing oswAngularBinSize dimension=1")
+        logger.info(
+            "compute_2D_cutoff|corrupted file containing oswAngularBinSize dimension=1"
+        )
     else:
         k_eff_2D = np.array((np.tile(k_eff, (k_sar.size, 1))).T)
         mask = s1a_spec * 0.0
@@ -54,7 +64,9 @@ def get_WV_2D_cutoff(handlerNC, lowfreqfilter: bool = True, plot_dev: bool = Fal
                 "any bins with low frequencies??? %s (%s %s%%)",
                 filterout_low_freq_condition.any(),
                 np.sum(filterout_low_freq_condition),
-                np.sum(filterout_low_freq_condition) * 100 / filterout_low_freq_condition.size,
+                np.sum(filterout_low_freq_condition)
+                * 100
+                / filterout_low_freq_condition.size,
             )
             mask_low_freq[filterout_low_freq_condition] = 0
             mask_eff *= mask_low_freq

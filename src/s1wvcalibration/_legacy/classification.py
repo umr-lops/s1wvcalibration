@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 from .classif_xml import read_xml_classif_ID
 from .match_classif import get_xml_path_from_measu
@@ -16,7 +17,9 @@ logger = logging.getLogger(__name__)
 __all__ = ["get_classification_infos"]
 
 
-def get_classification_infos(i, content, errors, counters):
+def get_classification_infos(
+    i: str, content: dict[str, object], errors: dict[str, int], counters: dict[str, int]
+) -> tuple[dict[str, object], dict[str, int], dict[str, int]]:
     """Fill *content* with the classification variables for measurement *i*.
 
     Args:
@@ -60,7 +63,9 @@ def get_classification_infos(i, content, errors, counters):
                 counters["classif_OK"] += 1
             else:
                 errors["classif_missing_imagette"] += 1
-                logger.info("imagette %s is not present in %s", imagette_number, path_pot_xml)
+                logger.info(
+                    "imagette %s is not present in %s", imagette_number, path_pot_xml
+                )
     else:
         logger.debug("no classif file for pat %s", path_pot_xml)
         errors["no_classification"] += 1
@@ -69,7 +74,13 @@ def get_classification_infos(i, content, errors, counters):
     return content, errors, counters
 
 
-def get_classification_infos_safe_granularity(measu, data_from_xml, content, errors, counters):
+def get_classification_infos_safe_granularity(
+    measu: str,
+    data_from_xml: Any,  # a pd.DataFrame indexed by imagette number
+    content: dict[str, object],
+    errors: dict[str, int],
+    counters: dict[str, int],
+) -> tuple[dict[str, object], dict[str, int], dict[str, int]]:
     """Fill *content* using a pre-read classif dict (SAFE granularity)."""
     var_to_index = []
     check_sum = 0

@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import cast
 
 import netCDF4
 import numpy as np
@@ -75,8 +76,8 @@ def measurements():
     return ms[:_N_TEST]
 
 
-def _moments(imag: dict) -> tuple[float, float, float]:
-    i_sq = imag["I"]
+def _moments(imag: dict[str, object]) -> tuple[float, float, float]:
+    i_sq = cast("np.ndarray", imag["I"])
     mu = np.mean(i_sq)
     nv = float(np.mean(np.power((i_sq - mu) / mu, 2)))
     skew = float(np.mean(np.power((i_sq - mu), 3)) / np.power(np.var(i_sq - mu), 1.5))
@@ -94,18 +95,48 @@ def test_l1_reader_matches_reference(reference, measurements):
     for ii, measu in enumerate(measurements):
         imag = read_slc_imagette(measu)
 
-        _assert_close("sig_sar", float(np.mean(imag["sigma0_matrix"])),
-                      reference["sig_sar"][ii], atol=1e-5, rtol=1e-5)
-        _assert_close("sig_sar_denoised", float(np.mean(imag["sigma0_denoised_matrix"])),
-                      reference["sig_sar_denoised"][ii], atol=1e-5, rtol=1e-5)
-        _assert_close("noise_sar", float(np.mean(imag["noise_linear"])),
-                      reference["noise_sar"][ii], atol=1e-5, rtol=1e-4)
-        _assert_close("doppler_centroid", imag["doppler_centroid_mean"],
-                      reference["doppler_centroid"][ii], atol=1e-3, rtol=1e-4)
-        _assert_close("doppler_centroid_quality", float(imag["doppler_centroid_quality"]),
-                      reference["doppler_centroid_quality"][ii], atol=0.0, rtol=0.0)
-        _assert_close("track_angle", imag["track_angle"],
-                      reference["track_angle"][ii], atol=1e-3, rtol=0.0)
+        _assert_close(
+            "sig_sar",
+            float(np.mean(imag["sigma0_matrix"])),
+            reference["sig_sar"][ii],
+            atol=1e-5,
+            rtol=1e-5,
+        )
+        _assert_close(
+            "sig_sar_denoised",
+            float(np.mean(imag["sigma0_denoised_matrix"])),
+            reference["sig_sar_denoised"][ii],
+            atol=1e-5,
+            rtol=1e-5,
+        )
+        _assert_close(
+            "noise_sar",
+            float(np.mean(imag["noise_linear"])),
+            reference["noise_sar"][ii],
+            atol=1e-5,
+            rtol=1e-4,
+        )
+        _assert_close(
+            "doppler_centroid",
+            imag["doppler_centroid_mean"],
+            reference["doppler_centroid"][ii],
+            atol=1e-3,
+            rtol=1e-4,
+        )
+        _assert_close(
+            "doppler_centroid_quality",
+            float(imag["doppler_centroid_quality"]),
+            reference["doppler_centroid_quality"][ii],
+            atol=0.0,
+            rtol=0.0,
+        )
+        _assert_close(
+            "track_angle",
+            imag["track_angle"],
+            reference["track_angle"][ii],
+            atol=1e-3,
+            rtol=0.0,
+        )
 
         nv, skew, kurt = _moments(imag)
         _assert_close("nv_sar", nv, reference["nv_sar"][ii], atol=1e-4, rtol=1e-4)
@@ -121,8 +152,20 @@ def test_l1_geolocation_matches_reference(reference, measurements):
         lon_new = np.mod(imag["lon"], 360.0)
         lon_ref = np.mod(reference["lon_sar"][ii], 360.0)
         _assert_close("lon_sar", float(lon_new), float(lon_ref), atol=0.05, rtol=0.0)
-        _assert_close("lat_sar", imag["lat"], reference["lat_sar"][ii], atol=0.05, rtol=0.0)
-        _assert_close("incidence_angle", imag["inc"],
-                      reference["incidence_angle"][ii], atol=1e-3, rtol=0.0)
-        _assert_close("elevation_angle", imag["elev"],
-                      reference["elevation_angle"][ii], atol=1e-3, rtol=0.0)
+        _assert_close(
+            "lat_sar", imag["lat"], reference["lat_sar"][ii], atol=0.05, rtol=0.0
+        )
+        _assert_close(
+            "incidence_angle",
+            imag["inc"],
+            reference["incidence_angle"][ii],
+            atol=1e-3,
+            rtol=0.0,
+        )
+        _assert_close(
+            "elevation_angle",
+            imag["elev"],
+            reference["elevation_angle"][ii],
+            atol=1e-3,
+            rtol=0.0,
+        )

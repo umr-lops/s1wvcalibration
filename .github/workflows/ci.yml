@@ -39,35 +39,43 @@ jobs:
     name: Check Python ${{ matrix.python-version }} on ${{ matrix.runs-on }}
     runs-on: ${{ matrix.runs-on }}
     needs: [pre-commit]
+    defaults:
+      run:
+        shell: bash -l {0}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.14"]
-        runs-on: [ubuntu-latest, windows-latest, macos-latest, macos-15-intel]
-
-        # include:
-        #   - python-version: "pypy-3.11"
-        #     runs-on: ubuntu-latest
+        python-version: ["3.10", "3.12"]
+        runs-on: [ubuntu-latest]
 
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v7
+      # GDAL (pulled by xsar/xsarsea) cannot be built from source in CI, so the
+      # geospatial stack comes from conda-forge where GDAL is prebuilt.
+      # xsar / xsarsea are NOT on conda-forge, so they are pip-installed next;
+      # pip sees the conda-provided GDAL as already satisfied and does not try
+      # to rebuild it. This mirrors the documented HPC recipe (pyproject.toml).
+      - uses: mamba-org/setup-micromamba@v3
         with:
-          python-version: ${{ matrix.python-version }}
-          allow-prereleases: true
+          environment-file: ci/requirements/environment.yaml
+          environment-name: s1wvci
+          cache-environment: true
+          create-args: >-
+            python=${{ matrix.python-version }}
+          post-cleanup: "none"
 
-      - uses: astral-sh/setup-uv@v7
+      - name: Install geospatial readers (sdist-only, not on conda-forge)
+        run: pip install "xsar[s1]" xsarsea
 
       - name: Install package
-        run: uv sync
+        run: pip install -e . --no-deps
 
       - name: Test package
         run: >-
-          uv run pytest -ra --cov --cov-report=xml --cov-report=term
-          --durations=20
+          pytest -ra --cov --cov-report=xml --cov-report=term --durations=20
 
       - name: Upload coverage report
         uses: codecov/codecov-action@v7

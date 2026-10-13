@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 __all__ = ["get_meteofrance_cep_0125_wind"]
 
 
-def get_meteofrance_cep_0125_wind(file: str, area=None, verbose: bool = False, control_plot: bool = False) -> dict:
+def get_meteofrance_cep_0125_wind(
+    file: str, area: object = None, verbose: bool = False, control_plot: bool = False
+) -> dict:
     """Read a METEOFRANCE_CEP netCDF wind file into a dict of 2D arrays.
 
     The output dict contains ``lat``, ``lon``, ``zon``, ``mer``, ``speed`` and
@@ -60,9 +62,17 @@ def get_meteofrance_cep_0125_wind(file: str, area=None, verbose: bool = False, c
         "speed": sin,
     }
 
-    gregtime = netCDF4.num2date(data.variables["time"], data.variables["time"].getncattr("units"))[0]
+    _times = netCDF4.num2date(
+        data.variables["time"][:], data.variables["time"].getncattr("units")
+    )
+    gregtime = _times[0] if isinstance(_times, np.ndarray) else _times
     wind["time"] = dt.datetime(
-        gregtime.year, gregtime.month, gregtime.day, gregtime.hour, gregtime.minute, gregtime.second,
+        gregtime.year,
+        gregtime.month,
+        gregtime.day,
+        gregtime.hour,
+        gregtime.minute,
+        gregtime.second,
         tzinfo=dt.timezone.utc,
     )
 

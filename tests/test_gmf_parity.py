@@ -48,6 +48,8 @@ def _legacy_dir() -> Path:
 def _load(name: str, filename: str):
     path = _legacy_dir() / filename
     spec = importlib.util.spec_from_file_location(name, path)
+    assert spec is not None
+    assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -124,7 +126,9 @@ def test_cmod5n_xsarsea_vs_legacy_sweet_spot(wv_grid):
 def test_cmod5n_xsarsea_vs_legacy_full_grid(wv_grid):
     """Sanity bound on the full grid (batch clamp can diverge at low wind)."""
     v, phi, theta = wv_grid
-    diff = np.abs(_db(cmod5n_xsarsea(v, phi, theta)) - _db(cmod5n_forward(v, phi, theta)))
+    diff = np.abs(
+        _db(cmod5n_xsarsea(v, phi, theta)) - _db(cmod5n_forward(v, phi, theta))
+    )
     # Measured 6.7 dB at the low-wind edge of the grid; keep the bound loose.
     assert diff.max() < 7.0
 

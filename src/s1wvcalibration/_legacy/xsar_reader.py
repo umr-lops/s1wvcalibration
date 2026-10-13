@@ -35,6 +35,7 @@ from __future__ import annotations
 import logging
 import re
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from scipy import interpolate
@@ -63,18 +64,20 @@ def _wv_subdataset_id(measu_path: str) -> str:
     return f"SENTINEL1_DS:{safe}:WV_{int(match.group(1)):03d}"
 
 
-def _open_calibrated(measu_path: str):
+def _open_calibrated(measu_path: str) -> tuple[Any, Any]:
     """Open the imagette with calibration, denoising and HR geoloc computed."""
     dsid = _wv_subdataset_id(measu_path)
     meta = Sentinel1Meta(dsid)
     sar = Sentinel1Dataset(dsid)
     # SLC (incl. WV): these are not auto-computed (GRD only), request explicitly.
-    sar.add_high_resolution_variables(patch_variable=True, luts=False, lazy_loading=True)
+    sar.add_high_resolution_variables(
+        patch_variable=True, luts=False, lazy_loading=True
+    )
     sar.apply_calibration_and_denoising()
     return meta, sar
 
 
-def _doppler_from_meta(meta, data):
+def _doppler_from_meta(meta: Any, data: Any) -> tuple[float, float]:
     """Mean Doppler-centroid estimate and its quality flag.
 
     Mirrors ``cerbere.mapper.safegeotiff.File.read_values('doppler_centroid')``:
@@ -87,7 +90,7 @@ def _doppler_from_meta(meta, data):
         logger.debug("no doppler estimate available: %s", exc)
         return float("nan"), float("nan")
 
-    freq = np.asarray(dop["frequency"].values, dtype=np.float64)      # (n_dce, n_srt)
+    freq = np.asarray(dop["frequency"].values, dtype=np.float64)  # (n_dce, n_srt)
     srt = np.asarray(dop["slantRangeTime"].values, dtype=np.float64)
     base = np.asarray(dop["azimuthTime"].values, dtype="datetime64[s]")[0]
     t_stop = np.asarray(dop["fineDceAzimuthStopTime"].values, dtype="datetime64[s]")[0]
@@ -107,7 +110,9 @@ def _doppler_from_meta(meta, data):
     y_int = sl[n_line // 2 : n_line // 2 + 1, :]
     mean = float(np.mean(func(x_int, y_int)))
 
-    quality = int(bool(np.asarray(dop["dataDcRmsErrorAboveThreshold"].values).ravel()[-1]))
+    quality = int(
+        bool(np.asarray(dop["dataDcRmsErrorAboveThreshold"].values).ravel()[-1])
+    )
     return mean, quality
 
 

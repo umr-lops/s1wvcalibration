@@ -24,6 +24,7 @@ import sys
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, cast
 
 import matplotlib as mpl
 
@@ -60,9 +61,14 @@ def _high_lat_threshold() -> int:
     return int(load_config()["calibration"]["high_lat_threshold"])
 
 
-def _wind_ranges() -> dict:
+def _wind_ranges() -> dict[str, int]:
     """Center wind speed (m/s) per sweet-spot (config)."""
-    return {k: int(v) for k, v in load_config()["calibration"]["wind_ranges"].items()}
+    return {
+        k: int(v)
+        for k, v in cast(
+            "dict[str, int]", load_config()["calibration"]["wind_ranges"]
+        ).items()
+    }
 
 
 def _dev_max_measu() -> int:
@@ -75,7 +81,7 @@ def _time_unit() -> str:
     return str(load_config()["calibration"]["time_unit"])
 
 
-def is_land(lon, lat, dsmask):
+def is_land(lon: float, lat: float, dsmask: xr.Dataset) -> bool:
     """Return ``True`` if the grid point closest to (lon, lat) is land.
 
     Defined for the ``mwf-ers-mask.nc`` land mask.
@@ -99,7 +105,7 @@ class WVcalibrator:
     def AnalyseOneSAFE(
         self,
         in_safe_file: str,
-        msk,
+        msk: xr.Dataset,
         path_out: str,
         max_latitude: int | None = None,
         suffix_output: str = "",
@@ -108,7 +114,7 @@ class WVcalibrator:
         ecmwf_version: str = "0100",
         redo: bool = False,
         dev: bool = False,
-    ):
+    ) -> tuple[dict, bool]:
         """Compute the WV calibration constant from sigma0 and colocated wind.
 
         Args:
@@ -140,9 +146,9 @@ class WVcalibrator:
         elif "SLC" in in_safe_file:
             level = "L1"
             ext = "tiff"
-        cpt_counter = collections.defaultdict(int)
+        cpt_counter: dict[str, int] = collections.defaultdict(int)
         logger.info("input file %s", in_safe_file)
-        self.cpt_wind_bias = collections.defaultdict(int)
+        self.cpt_wind_bias: dict[str, int] = collections.defaultdict(int)
         self.orbit_name = Path(in_safe_file).name
         logger.info("==========================")
         logger.info("Sentinel-1 SAFE file:%s ", self.orbit_name)
@@ -165,10 +171,16 @@ class WVcalibrator:
         self.date_sar1 = datetime.strptime(
             date_orbit1 + "_" + hour_orbit1, "%Y%m%d_%H%M%S"
         ).replace(tzinfo=_UTC)
-        _ = datetime.strptime(date_orbit2 + "_" + hour_orbit2, "%Y%m%d_%H%M%S").replace(tzinfo=_UTC)
+        _ = datetime.strptime(date_orbit2 + "_" + hour_orbit2, "%Y%m%d_%H%M%S").replace(
+            tzinfo=_UTC
+        )
         dayofyear = self.date_sar1.timetuple().tm_yday
         self.path_out = (
-            Path(path_out) / date_orbit1[0:4] / str(dayofyear).zfill(3) / self.orbit_name / "calib"
+            Path(path_out)
+            / date_orbit1[0:4]
+            / str(dayofyear).zfill(3)
+            / self.orbit_name
+            / "calib"
         )
         self.file_out_netcdf = self.orbit_name + suffix_output + ".nc"
         finalpath = self.path_out / self.file_out_netcdf
@@ -180,7 +192,9 @@ class WVcalibrator:
         # Ancillary data
         # ===================
         if ecmwf_version == "0125":
-            _file = find_colocated_ecmwf_file(self.date_sar1, path_wind=None, hour_step=None)
+            _file = find_colocated_ecmwf_file(
+                self.date_sar1, path_wind=None, hour_step=None
+            )
         else:
             tmpres_colocecm0100 = findfile(self.date_sar1, typee="light")
             _file = {"status": 1, "filename": tmpres_colocecm0100}
@@ -193,7 +207,9 @@ class WVcalibrator:
         tpt = 0
         if coloc_wind:
             if ecmwf_version == "0125":
-                anc_wind = get_meteofrance_cep_0125_wind(file_wind_coloc, verbose=False, control_plot=False)
+                anc_wind = get_meteofrance_cep_0125_wind(
+                    file_wind_coloc, verbose=False, control_plot=False
+                )
             else:  # case ecmwf 0.100 hourly
                 anc_wind = readfile(file_wind_coloc)
                 lonwnd, latwnd = np.meshgrid(anc_wind["lon"], anc_wind["lat"])
@@ -217,9 +233,12 @@ class WVcalibrator:
                 logger.info("pattern %s", measu_dir / ("*" + ext))
                 measurements = [str(p) for p in measu_dir.glob("*" + ext)]
             if dev:
-                logger.info("dev/test mode is True, limit number of measurement to %i (originally: %i)",
-                            _dev_max_measu(), len(measurements))
-                measurements = measurements[0:_dev_max_measu()]
+                logger.info(
+                    "dev/test mode is True, limit number of measurement to %i (originally: %i)",
+                    _dev_max_measu(),
+                    len(measurements),
+                )
+                measurements = measurements[0 : _dev_max_measu()]
             measurements = sorted(measurements)
             self.nbimagestiff = len(measurements)
             nb_measurements = len(measurements)
@@ -256,20 +275,26 @@ class WVcalibrator:
             _indices_ecmwf_coloc = np.zeros(nb_measurements)
             cpt_not_finite_position = 0
 
-            err = collections.defaultdict(int)
-            cnt = collections.defaultdict(int)
+            err: dict[str, int] = collections.defaultdict(int)
+            cnt: dict[str, int] = collections.defaultdict(int)
             logger.info("Nber of measurements: %s", nb_measurements)
             for ii, in_file_meas in enumerate(measurements):
                 _measu_fname.append(in_file_meas)
-                content: dict = {}
-                content, _errors, _counters = get_classification_infos(in_file_meas, content, err, cnt)
+                content: dict[str, object] = {}
+                content, _errors, _counters = get_classification_infos(
+                    in_file_meas, content, err, cnt
+                )
                 if "class_1" in content:
-                    _classification_sar.append(content["class_1"].ljust(3))
+                    _classification_sar.append(str(content["class_1"]).ljust(3))
                 else:
                     _classification_sar.append("   ")
                 if ii % 15 == 0:
-                    logger.info("Sentinel-1 file: %s %s/%s", Path(in_file_meas).name, ii + 1,
-                                len(measurements))
+                    logger.info(
+                        "Sentinel-1 file: %s %s/%s",
+                        Path(in_file_meas).name,
+                        ii + 1,
+                        len(measurements),
+                    )
                 try:
                     if level == "L1":
                         imag = read_slc_imagette(in_file_meas)
@@ -291,27 +316,41 @@ class WVcalibrator:
                             _sig_sar[ii] = np.mean(sig[sig > 0])
                         else:
                             _sig_sar[ii] = np.mean(sig)
-                            logger.debug("zero value taken into account in the imagette")
+                            logger.debug(
+                                "zero value taken into account in the imagette"
+                            )
                         sig_denoised = imag["sigma0_denoised_matrix"]
                         if not include_zero_s0:
-                            _sig_sar_denoised[ii] = np.mean(sig_denoised[sig_denoised > 0])
+                            _sig_sar_denoised[ii] = np.mean(
+                                sig_denoised[sig_denoised > 0]
+                            )
                         else:
                             _sig_sar_denoised[ii] = np.mean(sig_denoised)
                         _noise_sar[ii] = np.mean(noise)  # in linear
-                        I = imag["I"]
-                        _mu = np.mean(I)
-                        _nv_sar[ii] = np.mean(np.power(((I - _mu) / _mu), 2))
+                        intensity = imag["I"]
+                        _mu = np.mean(intensity)
+                        _nv_sar[ii] = np.mean(np.power(((intensity - _mu) / _mu), 2))
                         _tra_sar[ii] = imag["track_angle"]
-                        my_skewness = np.mean(np.power((I - _mu), 3)) / np.power(np.var(I - _mu), (3 / 2))
-                        my_kurtosis = np.mean(np.power((I - _mu), 4)) / np.power(np.var(I - _mu), 2)
+                        my_skewness = np.mean(
+                            np.power((intensity - _mu), 3)
+                        ) / np.power(np.var(intensity - _mu), (3 / 2))
+                        my_kurtosis = np.mean(
+                            np.power((intensity - _mu), 4)
+                        ) / np.power(np.var(intensity - _mu), 2)
                         _mom_stat3_sar_nrcs[ii] = my_skewness
                         _mom_stat4_sar_nrcs[ii] = my_kurtosis
-                        normvar = np.var(I, ddof=1) / _mu**2
+                        normvar = np.var(intensity, ddof=1) / _mu**2
                         logger.debug("check Nv mine %s scipy %s", _nv_sar[ii], normvar)
-                        skewness = np.mean(stats.skew(I - _mu))
-                        kurtosis = np.mean(stats.kurtosis(I - _mu, axis=1, fisher=True))
-                        logger.debug("kurtosis check mine %s scipy %s ", my_kurtosis, kurtosis)
-                        logger.debug("skewness check mine %s scipy %s ", my_skewness, skewness)
+                        skewness = np.mean(stats.skew(intensity - _mu))
+                        kurtosis = np.mean(
+                            stats.kurtosis(intensity - _mu, axis=1, fisher=True)
+                        )
+                        logger.debug(
+                            "kurtosis check mine %s scipy %s ", my_kurtosis, kurtosis
+                        )
+                        logger.debug(
+                            "skewness check mine %s scipy %s ", my_skewness, skewness
+                        )
                     elif level == "L2":
                         dsocn = xr.open_dataset(in_file_meas)
                         # Naive on purpose: feeds the ``time_sar`` NetCDF variable
@@ -319,7 +358,9 @@ class WVcalibrator:
                         dates_sar[ii] = datetime.strptime(  # noqa: DTZ007
                             Path(in_file_meas).name.split("-")[4], "%Y%m%dt%H%M%S"
                         )
-                        ww3file, _procedure = get_ww3spectra_l2_filepath(in_file_meas, use_new_procedure=None)
+                        ww3file, _procedure = get_ww3spectra_l2_filepath(
+                            in_file_meas, use_new_procedure=None
+                        )
                         if Path(ww3file).exists():
                             cpt_counter["ww3file_found"] += 1
                             nc_ww3 = netCDF4.Dataset(ww3file)
@@ -357,9 +398,13 @@ class WVcalibrator:
                         _quality_doppler_centroid[ii] = np.nan
                         _sig_sar[ii] = exp10(dsocn["oswNrcs"].values[0][0] / 10.0)
                         if "oswNrcsNeszCorr" in dsocn.variables:
-                            _sig_sar_denoised[ii] = exp10(dsocn["oswNrcsNeszCorr"].values[0][0] / 10.0)
+                            _sig_sar_denoised[ii] = exp10(
+                                dsocn["oswNrcsNeszCorr"].values[0][0] / 10.0
+                            )
                         else:
-                            _sig_sar_denoised[ii] = exp10(dsocn["oswNrcs"].values[0][0] / 10.0)
+                            _sig_sar_denoised[ii] = exp10(
+                                dsocn["oswNrcs"].values[0][0] / 10.0
+                            )
                         _noise_sar[ii] = np.nan
                         _nv_sar[ii] = dsocn["oswNv"].values[0][0]
                         _tra_sar[ii] = dsocn["oswHeading"].values[0][0]
@@ -371,7 +416,9 @@ class WVcalibrator:
                         if np.abs(_lat_sar[ii]) < max_latitude:
                             _highlat_flag[ii] = False
                         if not _highlat_flag[ii]:
-                            _land[ii] = is_land(lon=_lon_sar[ii], lat=_lat_sar[ii], dsmask=msk)
+                            _land[ii] = is_land(
+                                lon=_lon_sar[ii], lat=_lat_sar[ii], dsmask=msk
+                            )
                         else:
                             _land[ii] = False
                         if np.min(lon_wind) >= 0:
@@ -385,7 +432,12 @@ class WVcalibrator:
                         _indices_ecmwf_coloc[ii] = ind[0][0]
                         _dir = np.mod(
                             (180.0 / np.pi)
-                            * (math.atan2((np.ravel(mer_wind))[ind[0][0]], (np.ravel(zon_wind))[ind[0][0]]))
+                            * (
+                                math.atan2(
+                                    (np.ravel(mer_wind))[ind[0][0]],
+                                    (np.ravel(zon_wind))[ind[0][0]],
+                                )
+                            )
                             - 90,
                             360,
                         )
@@ -398,14 +450,18 @@ class WVcalibrator:
                         dlon_coloc_ecmwf[ii] = _lon_coloc_ecmwf[ii] - _lon_sar[ii]
                         dlat_coloc_ecmwf[ii] = _lat_coloc_ecmwf[ii] - _lat_sar[ii]
                     else:
-                        logger.warning("file %s contains lon=%s and lat=%s", in_file_meas, _lon_sar[ii],
-                                       _lat_sar[ii])
+                        logger.warning(
+                            "file %s contains lon=%s and lat=%s",
+                            in_file_meas,
+                            _lon_sar[ii],
+                            _lat_sar[ii],
+                        )
                         cpt_not_finite_position += 1
                     tpt = tpt + 1
                 except KeyboardInterrupt:
                     sys.exit(-1)
                 except Exception:
-                    logger.exception("cant read the file: %s ", in_file_meas)
+                    logger.exception("can't read the file: %s ", in_file_meas)
                     logger.exception("%s", traceback.format_exc())
                 if dev and ii >= _dev_max_measu():
                     logger.warning("stop the processing after 3 images to go quicker")
@@ -457,16 +513,27 @@ class WVcalibrator:
                 self._azi_sar_coloc_ecmwf = compute_azimuth_angle(
                     self._tra_sar, self._zon_coloc_ecmwf, self._mer_coloc_ecmwf
                 )
-                sigma0_cmod5 = cmod5(_spd_coloc_ecmwf, self._azi_sar_coloc_ecmwf, _inc_sar)
-                sigma0_cmod_ifr2 = cmod_ifr2(_inc_sar, _spd_coloc_ecmwf, self._azi_sar_coloc_ecmwf)
+                sigma0_cmod5 = cmod5(
+                    _spd_coloc_ecmwf, self._azi_sar_coloc_ecmwf, _inc_sar
+                )
+                sigma0_cmod_ifr2 = cmod_ifr2(
+                    _inc_sar, _spd_coloc_ecmwf, self._azi_sar_coloc_ecmwf
+                )
                 # Two CMOD5n implementations kept side by side during the migration:
                 #  - legacy (batch "correction vector agrouaze 2019") -> operational `sig_mod`
                 #  - xsarsea standard CMOD5_N (element-wise) -> `sig_mod_xsarsea`
-                sigma0_cmod5n = cmod5n_forward(_spd_coloc_ecmwf, self._azi_sar_coloc_ecmwf, _inc_sar)
-                sigma0_cmod5n_xsarsea = cmod5n_xsarsea(_spd_coloc_ecmwf, self._azi_sar_coloc_ecmwf, _inc_sar)
+                sigma0_cmod5n = cmod5n_forward(
+                    _spd_coloc_ecmwf, self._azi_sar_coloc_ecmwf, _inc_sar
+                )
+                sigma0_cmod5n_xsarsea = cmod5n_xsarsea(
+                    _spd_coloc_ecmwf, self._azi_sar_coloc_ecmwf, _inc_sar
+                )
                 if self.polarisation == "H":
                     pr = get_polarization_ratio(
-                        _spd_coloc_ecmwf, _inc_sar, phi=self._azi_sar_coloc_ecmwf, name="mouche1"
+                        _spd_coloc_ecmwf,
+                        _inc_sar,
+                        phi=self._azi_sar_coloc_ecmwf,
+                        name="mouche1",
                     )
                     sigma0_cmod5 = sigma0_cmod5 / pr
                     sigma0_cmod_ifr2 = sigma0_cmod_ifr2 / pr
@@ -477,67 +544,101 @@ class WVcalibrator:
                 self.sigma0_cmod5n = sigma0_cmod5n
                 self.sigma0_cmod5n_xsarsea = sigma0_cmod5n_xsarsea
 
-                logger.info(" Nber of value on land: %s on ocean: %s", np.sum(_land), np.sum(_land == False))
-                logger.info(" Nber of value high latitude : %s moderate latitudes: %s", np.sum(_highlat_flag),
-                            np.sum(_highlat_flag == False))
+                logger.info(
+                    " Nber of value on land: %s on ocean: %s",
+                    np.sum(_land),
+                    np.sum(~_land),
+                )
+                logger.info(
+                    " Nber of value high latitude : %s moderate latitudes: %s",
+                    np.sum(_highlat_flag),
+                    np.sum(~_highlat_flag),
+                )
                 filter_wv2 = (
                     (_inc_sar > 30)
                     & (_sig_sar > 0)
                     & (np.abs(_spd_coloc_ecmwf - wind_ranges[windrange_i]) < 3)
-                    & (_land == False)
-                    & (_highlat_flag == False)
+                    & ~_land
+                    & ~_highlat_flag
                 )
                 filter_wv1 = (
                     (_inc_sar < 30)
                     & (_sig_sar > 0)
                     & (np.abs(_spd_coloc_ecmwf - wind_ranges[windrange_i]) < 3)
-                    & (_land == False)
-                    & (_highlat_flag == False)
+                    & ~_land
+                    & ~_highlat_flag
                 )
-                self.inc_2_ = (_inc_sar > 30) & (_sig_sar > 0) & (_land == False) & (_highlat_flag == False)
-                self.inc_1_ = (_inc_sar < 30) & (_sig_sar > 0) & (_land == False) & (_highlat_flag == False)
+                self.inc_2_ = (_inc_sar > 30) & (_sig_sar > 0) & ~_land & ~_highlat_flag
+                self.inc_1_ = (_inc_sar < 30) & (_sig_sar > 0) & ~_land & ~_highlat_flag
 
                 self._cor_wv1_cmod5[windrange_i] = np.mean(
-                    10 * np.log10(sigma0_cmod5[filter_wv1]) - 10 * np.log10(_sig_sar[filter_wv1])
+                    10 * np.log10(sigma0_cmod5[filter_wv1])
+                    - 10 * np.log10(_sig_sar[filter_wv1])
                 )
                 self._cor_wv2_cmod5[windrange_i] = np.mean(
-                    10 * np.log10(sigma0_cmod5[filter_wv2]) - 10 * np.log10(_sig_sar[filter_wv2])
+                    10 * np.log10(sigma0_cmod5[filter_wv2])
+                    - 10 * np.log10(_sig_sar[filter_wv2])
                 )
                 self._cor_wv1_cmod5n[windrange_i] = np.mean(
-                    10 * np.log10(sigma0_cmod5n[filter_wv1]) - 10 * np.log10(_sig_sar[filter_wv1])
+                    10 * np.log10(sigma0_cmod5n[filter_wv1])
+                    - 10 * np.log10(_sig_sar[filter_wv1])
                 )
                 self._cor_wv2_cmod5n[windrange_i] = np.mean(
-                    10 * np.log10(sigma0_cmod5n[filter_wv2]) - 10 * np.log10(_sig_sar[filter_wv2])
+                    10 * np.log10(sigma0_cmod5n[filter_wv2])
+                    - 10 * np.log10(_sig_sar[filter_wv2])
                 )
                 self._cor_wv1_cmod5n_xsarsea[windrange_i] = np.mean(
-                    10 * np.log10(sigma0_cmod5n_xsarsea[filter_wv1]) - 10 * np.log10(_sig_sar[filter_wv1])
+                    10 * np.log10(sigma0_cmod5n_xsarsea[filter_wv1])
+                    - 10 * np.log10(_sig_sar[filter_wv1])
                 )
                 self._cor_wv2_cmod5n_xsarsea[windrange_i] = np.mean(
-                    10 * np.log10(sigma0_cmod5n_xsarsea[filter_wv2]) - 10 * np.log10(_sig_sar[filter_wv2])
+                    10 * np.log10(sigma0_cmod5n_xsarsea[filter_wv2])
+                    - 10 * np.log10(_sig_sar[filter_wv2])
                 )
-                logger.info("10*np.log10(sigma0_cmod_ifr2[filter_wv1]: %s",
-                            10 * np.log10(sigma0_cmod_ifr2[filter_wv1]))
-                logger.info("10*np.log10(_sig_sar[filter_wv1])): %s", 10 * np.log10(_sig_sar[filter_wv1]))
+                logger.info(
+                    "10*np.log10(sigma0_cmod_ifr2[filter_wv1]: %s",
+                    10 * np.log10(sigma0_cmod_ifr2[filter_wv1]),
+                )
+                logger.info(
+                    "10*np.log10(_sig_sar[filter_wv1])): %s",
+                    10 * np.log10(_sig_sar[filter_wv1]),
+                )
                 self._cor_wv1[windrange_i] = np.mean(
-                    10 * np.log10(sigma0_cmod_ifr2[filter_wv1]) - 10 * np.log10(_sig_sar[filter_wv1])
+                    10 * np.log10(sigma0_cmod_ifr2[filter_wv1])
+                    - 10 * np.log10(_sig_sar[filter_wv1])
                 )
                 self._cor_wv2[windrange_i] = np.mean(
-                    10 * np.log10(sigma0_cmod_ifr2[filter_wv2]) - 10 * np.log10(_sig_sar[filter_wv2])
+                    10 * np.log10(sigma0_cmod_ifr2[filter_wv2])
+                    - 10 * np.log10(_sig_sar[filter_wv2])
                 )
 
-                windfilter1 = (_inc_sar > 30) & (_sig_sar > 0) & (_land == False) & (_highlat_flag == False)
-                windfilter2 = (_inc_sar < 30) & (_sig_sar > 0) & (_land == False) & (_highlat_flag == False)
+                windfilter1 = (_inc_sar > 30) & (_sig_sar > 0) & ~_land & ~_highlat_flag
+                windfilter2 = (_inc_sar < 30) & (_sig_sar > 0) & ~_land & ~_highlat_flag
                 self.cpt_wind_bias = collections.defaultdict(int)
                 self.wind_bias = collections.defaultdict(int)
                 if level == "L2":
                     tmp1 = []
                     tmp2 = []
-                    safe_windspeed_biasfull1 = _spd_coloc_ecmwf[windfilter1] - _windspeed_sar[windfilter1]
-                    safe_windspeed_biasfull2 = _spd_coloc_ecmwf[windfilter2] - _windspeed_sar[windfilter2]
-                    safe_winddirection_biasfull1 = self._azi_sar_coloc_ecmwf[windfilter1]
-                    safe_winddirection_biasfull2 = self._azi_sar_coloc_ecmwf[windfilter2]
-                    logger.debug("lenth of safe_windspeed_biasfull2 %s", len(safe_windspeed_biasfull2))
-                    logger.debug("lenth of safe_windspeed_biasfull1 %s", len(safe_windspeed_biasfull1))
+                    safe_windspeed_biasfull1 = (
+                        _spd_coloc_ecmwf[windfilter1] - _windspeed_sar[windfilter1]
+                    )
+                    safe_windspeed_biasfull2 = (
+                        _spd_coloc_ecmwf[windfilter2] - _windspeed_sar[windfilter2]
+                    )
+                    safe_winddirection_biasfull1 = self._azi_sar_coloc_ecmwf[
+                        windfilter1
+                    ]
+                    safe_winddirection_biasfull2 = self._azi_sar_coloc_ecmwf[
+                        windfilter2
+                    ]
+                    logger.debug(
+                        "length of safe_windspeed_biasfull2 %s",
+                        len(safe_windspeed_biasfull2),
+                    )
+                    logger.debug(
+                        "length of safe_windspeed_biasfull1 %s",
+                        len(safe_windspeed_biasfull1),
+                    )
                     for plage in wind_plages:
                         ws_filterd1 = safe_windspeed_biasfull1[
                             (_spd_coloc_ecmwf[windfilter1] > wind_plages[plage][0])
@@ -556,42 +657,77 @@ class WVcalibrator:
                             & (_spd_coloc_ecmwf[windfilter2] < wind_plages[plage][1])
                         ]
                         for wdd in wind_pref_directions:
-                            bias_ws_dd_1 = ws_filterd1[(wd_filterd1 > wind_pref_directions[wdd][0])
-                                                       & (wd_filterd1 < wind_pref_directions[wdd][1])]
-                            bias_ws_dd_2 = ws_filterd2[(wd_filterd2 > wind_pref_directions[wdd][0])
-                                                       & (wd_filterd2 < wind_pref_directions[wdd][1])]
+                            bias_ws_dd_1 = ws_filterd1[
+                                (wd_filterd1 > wind_pref_directions[wdd][0])
+                                & (wd_filterd1 < wind_pref_directions[wdd][1])
+                            ]
+                            bias_ws_dd_2 = ws_filterd2[
+                                (wd_filterd2 > wind_pref_directions[wdd][0])
+                                & (wd_filterd2 < wind_pref_directions[wdd][1])
+                            ]
                             mean_ws_dd_1 = np.nanmean(bias_ws_dd_1)
                             mean_ws_dd_2 = np.nanmean(bias_ws_dd_2)
                             self.wind_bias[plage + "-" + wdd + "1"] = mean_ws_dd_1
                             self.wind_bias[plage + "-" + wdd + "2"] = mean_ws_dd_2
                             self.cpt_wind_bias["1"] += len(bias_ws_dd_1)
                             self.cpt_wind_bias["2"] += len(bias_ws_dd_2)
-                            self.cpt_wind_bias[plage + "-" + wdd + "1"] = len(bias_ws_dd_1)
-                            self.cpt_wind_bias[plage + "-" + wdd + "2"] = len(bias_ws_dd_2)
-                            tmp1.append(self.cpt_wind_bias[plage + "-" + wdd + "1"] * self.wind_bias[
-                                plage + "-" + wdd + "1"])
-                            tmp2.append(self.cpt_wind_bias[plage + "-" + wdd + "2"] * self.wind_bias[
-                                plage + "-" + wdd + "2"])
+                            self.cpt_wind_bias[plage + "-" + wdd + "1"] = len(
+                                bias_ws_dd_1
+                            )
+                            self.cpt_wind_bias[plage + "-" + wdd + "2"] = len(
+                                bias_ws_dd_2
+                            )
+                            tmp1.append(
+                                self.cpt_wind_bias[plage + "-" + wdd + "1"]
+                                * self.wind_bias[plage + "-" + wdd + "1"]
+                            )
+                            tmp2.append(
+                                self.cpt_wind_bias[plage + "-" + wdd + "2"]
+                                * self.wind_bias[plage + "-" + wdd + "2"]
+                            )
                             logger.debug("bias_ws_dd_1 %s", bias_ws_dd_1)
                             logger.debug(
                                 "wind speed bias for plage %s in %s, wv1=%s m/s wv2=%sm/s with (resp. %s and %s obs)",
-                                plage, wdd, mean_ws_dd_1, mean_ws_dd_2, len(bias_ws_dd_1), len(bias_ws_dd_2))
+                                plage,
+                                wdd,
+                                mean_ws_dd_1,
+                                mean_ws_dd_2,
+                                len(bias_ws_dd_1),
+                                len(bias_ws_dd_2),
+                            )
 
-                    logger.debug("total obs for windbias %s", self.cpt_wind_bias["1"] + self.cpt_wind_bias["2"])
+                    logger.debug(
+                        "total obs for windbias %s",
+                        self.cpt_wind_bias["1"] + self.cpt_wind_bias["2"],
+                    )
                     logger.debug("cpt_wind_bias = %s", self.cpt_wind_bias)
-                    logger.debug("ponderated wind bias wv1 %s m/s", np.nansum(tmp1) / self.cpt_wind_bias["1"])
-                    logger.debug("ponderated wind bias wv2 %s m/s", np.nansum(tmp2) / self.cpt_wind_bias["2"])
+                    logger.debug(
+                        "ponderated wind bias wv1 %s m/s",
+                        np.nansum(tmp1) / self.cpt_wind_bias["1"],
+                    )
+                    logger.debug(
+                        "ponderated wind bias wv2 %s m/s",
+                        np.nansum(tmp2) / self.cpt_wind_bias["2"],
+                    )
                     logger.debug(
                         "previous bias (not ponderated) wv1 %s",
-                        np.nanmean(_spd_coloc_ecmwf[filter_wv1] - _windspeed_sar[filter_wv1]))
+                        np.nanmean(
+                            _spd_coloc_ecmwf[filter_wv1] - _windspeed_sar[filter_wv1]
+                        ),
+                    )
                     logger.debug(
                         "previous bias (not ponderated) wv2 %s",
-                        np.nanmean(_spd_coloc_ecmwf[filter_wv2] - _windspeed_sar[filter_wv2]))
+                        np.nanmean(
+                            _spd_coloc_ecmwf[filter_wv2] - _windspeed_sar[filter_wv2]
+                        ),
+                    )
                 if level == "L2":
                     self.safe_windspeed_biasfull1 = np.nanmean(
-                        _spd_coloc_ecmwf[windfilter1] - _windspeed_sar[windfilter1])
+                        _spd_coloc_ecmwf[windfilter1] - _windspeed_sar[windfilter1]
+                    )
                     self.safe_windspeed_biasfull2 = np.nanmean(
-                        _spd_coloc_ecmwf[windfilter2] - _windspeed_sar[windfilter2])
+                        _spd_coloc_ecmwf[windfilter2] - _windspeed_sar[windfilter2]
+                    )
                 else:
                     self.safe_windspeed_biasfull1 = np.nan
                     self.safe_windspeed_biasfull2 = np.nan
@@ -599,22 +735,28 @@ class WVcalibrator:
                 swhfilter1 = (
                     (_inc_sar > 30)
                     & (_sig_sar > 0)
-                    & (_land == False)
-                    & (_highlat_flag == False)
+                    & ~_land
+                    & ~_highlat_flag
                     & (np.isfinite(_hseff2d_ww3))
                 )
                 swhfilter2 = (
                     (_inc_sar < 30)
                     & (_sig_sar > 0)
-                    & (_land == False)
-                    & (_highlat_flag == False)
+                    & ~_land
+                    & ~_highlat_flag
                     & (np.isfinite(_hseff2d_ww3))
                 )
                 self.cpt_swh_bias = collections.defaultdict(int)
                 self.swh_bias = collections.defaultdict(int)
-                logger.debug("data swh: %s", _hseff2d_ww3[swhfilter1] - _hseff2d_sar[swhfilter1])
-                self.swh_bias["wv1"] = np.mean(_hseff2d_ww3[swhfilter1] - _hseff2d_sar[swhfilter1])
-                self.swh_bias["wv2"] = np.mean(_hseff2d_ww3[swhfilter2] - _hseff2d_sar[swhfilter2])
+                logger.debug(
+                    "data swh: %s", _hseff2d_ww3[swhfilter1] - _hseff2d_sar[swhfilter1]
+                )
+                self.swh_bias["wv1"] = np.mean(
+                    _hseff2d_ww3[swhfilter1] - _hseff2d_sar[swhfilter1]
+                )
+                self.swh_bias["wv2"] = np.mean(
+                    _hseff2d_ww3[swhfilter2] - _hseff2d_sar[swhfilter2]
+                )
                 self.cpt_swh_bias["wv1"] = len(_hseff2d_ww3[swhfilter1])
                 self.cpt_swh_bias["wv2"] = len(_hseff2d_ww3[swhfilter2])
                 logger.debug('self.cpt_swh_bias["wv1"] %s', self.cpt_swh_bias["wv1"])
@@ -628,8 +770,11 @@ class WVcalibrator:
                 self.nb_inc1_corr[windrange_i] = len(_inc_sar[filter_wv1])
                 self.nb_inc2_corr[windrange_i] = len(_inc_sar[filter_wv2])
 
-                logger.info("Nber of points in the wind sweet spot: WV1 = %s WV2= %s", self.nb_inc1_corr,
-                            self.nb_inc2_corr)
+                logger.info(
+                    "Nber of points in the wind sweet spot: WV1 = %s WV2= %s",
+                    self.nb_inc1_corr,
+                    self.nb_inc2_corr,
+                )
                 logger.info("WV1 cmod ifr: %s", self._cor_wv1)
                 logger.info("WV2 cmod ifr: %s", self._cor_wv2)
                 logger.info("WV1 _cmod5: %s", self._cor_wv1_cmod5)
@@ -645,7 +790,9 @@ class WVcalibrator:
             self.finalpath = self.path_out / self.file_out_netcdf
             if self.finalpath.exists() and redo is False:
                 save_calib_file = False
-                logger.info("redo option is False and file already exist -> skip re writting the netcdf output")
+                logger.info(
+                    "redo option is False and file already exist -> skip re writing the netcdf output"
+                )
             if save_calib_file:
                 self.Write2NetCDFWVsentinel1CalValParams3()
                 logger.debug("step:plot NRCS vs wind")
@@ -694,14 +841,17 @@ class WVcalibrator:
                     gmf_name="cmod5n",
                 )
                 SaveNRCSvsWindPlot(filout, fig)
-            logger.info("There is %s measurement that do not have finite lon/lat", cpt_not_finite_position)
+            logger.info(
+                "There is %s measurement that do not have finite lon/lat",
+                cpt_not_finite_position,
+            )
             logger.info("counters: %s", cpt_counter)
         else:
             flag_data_available = False
 
         return final_result, flag_data_available
 
-    def Write2NetCDFWVsentinel1CalValParams3(self):
+    def Write2NetCDFWVsentinel1CalValParams3(self) -> None:
         """Write the calibration parameters to a NetCDF file using xarray."""
         nber = len(self._sig_sar)
         finalpath = self.path_out / self.file_out_netcdf
@@ -714,127 +864,252 @@ class WVcalibrator:
         data_vars: dict = {}
         data_vars["time_sar"] = (("number_of_wm_acq",), self._dates_sar)
         data_vars["sig_sar"] = (("number_of_wm_acq",), self._sig_sar.astype(np.float32))
-        data_vars["sig_sar_denoised"] = (("number_of_wm_acq",), self._sig_sar_denoised.astype(np.float32))
-        data_vars["noise_sar"] = (("number_of_wm_acq",), self._noise_sar.astype(np.float32))
-        data_vars["sig_mod"] = (("number_of_wm_acq",), self.sigma0_cmod5n.astype(np.float32))
-        data_vars["sig_mod_xsarsea"] = (("number_of_wm_acq",), self.sigma0_cmod5n_xsarsea.astype(np.float32))
+        data_vars["sig_sar_denoised"] = (
+            ("number_of_wm_acq",),
+            self._sig_sar_denoised.astype(np.float32),
+        )
+        data_vars["noise_sar"] = (
+            ("number_of_wm_acq",),
+            self._noise_sar.astype(np.float32),
+        )
+        data_vars["sig_mod"] = (
+            ("number_of_wm_acq",),
+            self.sigma0_cmod5n.astype(np.float32),
+        )
+        data_vars["sig_mod_xsarsea"] = (
+            ("number_of_wm_acq",),
+            self.sigma0_cmod5n_xsarsea.astype(np.float32),
+        )
         data_vars["land"] = (("number_of_wm_acq",), self._land.astype(np.float32))
-        data_vars["track_angle"] = (("number_of_wm_acq",), self._tra_sar.astype(np.float32))
-        data_vars["incidence_angle"] = (("number_of_wm_acq",), self._inc_sar.astype(np.float32))
-        data_vars["elevation_angle"] = (("number_of_wm_acq",), self._elev_sar.astype(np.float32))
-        data_vars["doppler_centroid"] = (("number_of_wm_acq",), self._doppler_centroid.astype(np.float32))
+        data_vars["track_angle"] = (
+            ("number_of_wm_acq",),
+            self._tra_sar.astype(np.float32),
+        )
+        data_vars["incidence_angle"] = (
+            ("number_of_wm_acq",),
+            self._inc_sar.astype(np.float32),
+        )
+        data_vars["elevation_angle"] = (
+            ("number_of_wm_acq",),
+            self._elev_sar.astype(np.float32),
+        )
+        data_vars["doppler_centroid"] = (
+            ("number_of_wm_acq",),
+            self._doppler_centroid.astype(np.float32),
+        )
         data_vars["doppler_centroid_quality"] = (
             ("number_of_wm_acq",),
             self._quality_doppler_centroid.astype(np.int8),
-            {"descr": "True means the RMS of doppler centroid fit with estimates is below the threshold"},
+            {
+                "descr": "True means the RMS of doppler centroid fit with estimates is below the threshold"
+            },
         )
         data_vars["lon_sar"] = (("number_of_wm_acq",), self._lon_sar.astype(np.float32))
         data_vars["lat_sar"] = (("number_of_wm_acq",), self._lat_sar.astype(np.float32))
         data_vars["nv_sar"] = (("number_of_wm_acq",), self._nv_sar.astype(np.float32))
-        data_vars["skew_sar"] = (("number_of_wm_acq",), self._mom_stat3_sar_nrcs.astype(np.float32))
-        data_vars["kurt_sar"] = (("number_of_wm_acq",), self._mom_stat4_sar_nrcs.astype(np.float32), {"descr": "kurtosis"})
+        data_vars["skew_sar"] = (
+            ("number_of_wm_acq",),
+            self._mom_stat3_sar_nrcs.astype(np.float32),
+        )
+        data_vars["kurt_sar"] = (
+            ("number_of_wm_acq",),
+            self._mom_stat4_sar_nrcs.astype(np.float32),
+            {"descr": "kurtosis"},
+        )
 
-        rough_class_sar_bytes = np.array([s.encode("utf-8").ljust(3)[:3] for s in self._classification_sar],
-                                         dtype="|S3")
+        rough_class_sar_bytes = np.array(
+            [s.encode("utf-8").ljust(3)[:3] for s in self._classification_sar],
+            dtype="|S3",
+        )
         data_vars["rough_class_sar"] = (("number_of_wm_acq",), rough_class_sar_bytes)
 
-        data_vars["spd_ecmwf"] = (("number_of_wm_acq",), self._spd_coloc_ecmwf.astype(np.float32))
-        data_vars["dir_ecmwf"] = (("number_of_wm_acq",), self._dir_coloc_ecmwf.astype(np.float32))
-        data_vars["zon_ecmwf"] = (("number_of_wm_acq",), self._zon_coloc_ecmwf.astype(np.float32))
-        data_vars["mer_ecmwf"] = (("number_of_wm_acq",), self._mer_coloc_ecmwf.astype(np.float32))
-        data_vars["lon_ecmwf"] = (("number_of_wm_acq",), self._lon_coloc_ecmwf.astype(np.float32))
-        data_vars["lat_ecmwf"] = (("number_of_wm_acq",), self._lat_coloc_ecmwf.astype(np.float32))
-        data_vars["dlon_ecmwf"] = (("number_of_wm_acq",), self.dlon_coloc_ecmwf.astype(np.float32))
-        data_vars["dlat_ecmwf"] = (("number_of_wm_acq",), self.dlat_coloc_ecmwf.astype(np.float32))
+        data_vars["spd_ecmwf"] = (
+            ("number_of_wm_acq",),
+            self._spd_coloc_ecmwf.astype(np.float32),
+        )
+        data_vars["dir_ecmwf"] = (
+            ("number_of_wm_acq",),
+            self._dir_coloc_ecmwf.astype(np.float32),
+        )
+        data_vars["zon_ecmwf"] = (
+            ("number_of_wm_acq",),
+            self._zon_coloc_ecmwf.astype(np.float32),
+        )
+        data_vars["mer_ecmwf"] = (
+            ("number_of_wm_acq",),
+            self._mer_coloc_ecmwf.astype(np.float32),
+        )
+        data_vars["lon_ecmwf"] = (
+            ("number_of_wm_acq",),
+            self._lon_coloc_ecmwf.astype(np.float32),
+        )
+        data_vars["lat_ecmwf"] = (
+            ("number_of_wm_acq",),
+            self._lat_coloc_ecmwf.astype(np.float32),
+        )
+        data_vars["dlon_ecmwf"] = (
+            ("number_of_wm_acq",),
+            self.dlon_coloc_ecmwf.astype(np.float32),
+        )
+        data_vars["dlat_ecmwf"] = (
+            ("number_of_wm_acq",),
+            self.dlat_coloc_ecmwf.astype(np.float32),
+        )
 
         if self.wind_bias is not None:
             for plage in wind_plages:
                 for wdd in wind_pref_directions:
                     data_vars[f"windspeed_bias_{plage}_{wdd}_wv1"] = (
                         ("number_of_wm_correction",),
-                        np.array([self.wind_bias[f"{plage}-{wdd}1"]]).astype(np.float32))
+                        np.array([self.wind_bias[f"{plage}-{wdd}1"]]).astype(
+                            np.float32
+                        ),
+                    )
                     data_vars[f"windspeed_bias_{plage}_{wdd}_wv2"] = (
                         ("number_of_wm_correction",),
-                        np.array([self.wind_bias[f"{plage}-{wdd}2"]]).astype(np.float32))
+                        np.array([self.wind_bias[f"{plage}-{wdd}2"]]).astype(
+                            np.float32
+                        ),
+                    )
                     data_vars[f"nbobs_windspeed_bias_{plage}_{wdd}_wv1"] = (
                         ("number_of_wm_correction",),
-                        np.array([self.cpt_wind_bias[f"{plage}-{wdd}1"]]).astype(np.float32))
+                        np.array([self.cpt_wind_bias[f"{plage}-{wdd}1"]]).astype(
+                            np.float32
+                        ),
+                    )
                     data_vars[f"nbobs_windspeed_bias_{plage}_{wdd}_wv2"] = (
                         ("number_of_wm_correction",),
-                        np.array([self.cpt_wind_bias[f"{plage}-{wdd}2"]]).astype(np.float32))
+                        np.array([self.cpt_wind_bias[f"{plage}-{wdd}2"]]).astype(
+                            np.float32
+                        ),
+                    )
 
         data_vars["windspeed_bias_full_wv1"] = (
-            ("number_of_wm_correction",), np.array([self.safe_windspeed_biasfull1]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self.safe_windspeed_biasfull1]).astype(np.float32),
+        )
         data_vars["windspeed_bias_full_wv2"] = (
-            ("number_of_wm_correction",), np.array([self.safe_windspeed_biasfull2]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self.safe_windspeed_biasfull2]).astype(np.float32),
+        )
 
         data_vars["mean_swh_2d_eff_bias_ww3spec_wv1"] = (
-            ("number_of_wm_correction",), np.array([self.swh_bias["wv1"]]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self.swh_bias["wv1"]]).astype(np.float32),
+        )
         data_vars["mean_swh_2d_eff_bias_ww3spec_ww3spec_wv2"] = (
-            ("number_of_wm_correction",), np.array([self.swh_bias["wv2"]]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self.swh_bias["wv2"]]).astype(np.float32),
+        )
         data_vars["nb_swh_2d_eff_bias_ww3spec_wv1"] = (
-            ("number_of_wm_correction",), np.array([self.cpt_swh_bias["wv1"]]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self.cpt_swh_bias["wv1"]]).astype(np.float32),
+        )
         data_vars["nb_swh_2d_eff_bias_ww3spec_wv2"] = (
-            ("number_of_wm_correction",), np.array([self.cpt_swh_bias["wv2"]]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self.cpt_swh_bias["wv2"]]).astype(np.float32),
+        )
 
         data_vars["correction_wv1"] = (
-            ("number_of_wm_correction",), np.array([self._cor_wv1["classical"]]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self._cor_wv1["classical"]]).astype(np.float32),
+        )
         data_vars["correction_wv2"] = (
-            ("number_of_wm_correction",), np.array([self._cor_wv2["classical"]]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self._cor_wv2["classical"]]).astype(np.float32),
+        )
         data_vars["correction_wv1_cmod5"] = (
-            ("number_of_wm_correction",), np.array([self._cor_wv1_cmod5["classical"]]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self._cor_wv1_cmod5["classical"]]).astype(np.float32),
+        )
         data_vars["correction_wv2_cmod5"] = (
-            ("number_of_wm_correction",), np.array([self._cor_wv2_cmod5["classical"]]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self._cor_wv2_cmod5["classical"]]).astype(np.float32),
+        )
         data_vars["correction_wv1_cmod5n"] = (
             ("number_of_wm_correction",),
             np.array([self._cor_wv1_cmod5n["classical"]]).astype(np.float32),
-            {"descr": "GMF - SAR obs", "unit": "dB"})
+            {"descr": "GMF - SAR obs", "unit": "dB"},
+        )
         data_vars["correction_wv2_cmod5n"] = (
             ("number_of_wm_correction",),
             np.array([self._cor_wv2_cmod5n["classical"]]).astype(np.float32),
-            {"descr": "GMF - SAR obs", "unit": "dB"})
+            {"descr": "GMF - SAR obs", "unit": "dB"},
+        )
         data_vars["correction_wv1_cmod5n_xsarsea"] = (
             ("number_of_wm_correction",),
             np.array([self._cor_wv1_cmod5n_xsarsea["classical"]]).astype(np.float32),
-            {"descr": "GMF(xsarsea) - SAR obs", "unit": "dB"})
+            {"descr": "GMF(xsarsea) - SAR obs", "unit": "dB"},
+        )
         data_vars["correction_wv2_cmod5n_xsarsea"] = (
             ("number_of_wm_correction",),
             np.array([self._cor_wv2_cmod5n_xsarsea["classical"]]).astype(np.float32),
-            {"descr": "GMF(xsarsea) - SAR obs", "unit": "dB"})
+            {"descr": "GMF(xsarsea) - SAR obs", "unit": "dB"},
+        )
         data_vars["nbptsNRCSbias_wv1"] = (
-            ("number_of_wm_correction",), np.array([self.nb_inc1_corr["classical"]]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self.nb_inc1_corr["classical"]]).astype(np.float32),
+        )
         data_vars["nbptsNRCSbias_wv2"] = (
-            ("number_of_wm_correction",), np.array([self.nb_inc2_corr["classical"]]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self.nb_inc2_corr["classical"]]).astype(np.float32),
+        )
 
         data_vars["correction_wv1_10ws"] = (
-            ("number_of_wm_correction",), np.array([self._cor_wv1["noise_free"]]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self._cor_wv1["noise_free"]]).astype(np.float32),
+        )
         data_vars["correction_wv2_10ws"] = (
-            ("number_of_wm_correction",), np.array([self._cor_wv2["noise_free"]]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self._cor_wv2["noise_free"]]).astype(np.float32),
+        )
         data_vars["correction_wv1_cmod5_10ws"] = (
-            ("number_of_wm_correction",), np.array([self._cor_wv1_cmod5["noise_free"]]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self._cor_wv1_cmod5["noise_free"]]).astype(np.float32),
+        )
         data_vars["correction_wv2_cmod5_10ws"] = (
-            ("number_of_wm_correction",), np.array([self._cor_wv2_cmod5["noise_free"]]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self._cor_wv2_cmod5["noise_free"]]).astype(np.float32),
+        )
         data_vars["correction_wv1_cmod5n_10ws"] = (
-            ("number_of_wm_correction",), np.array([self._cor_wv1_cmod5n["noise_free"]]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self._cor_wv1_cmod5n["noise_free"]]).astype(np.float32),
+        )
         data_vars["correction_wv2_cmod5n_10ws"] = (
-            ("number_of_wm_correction",), np.array([self._cor_wv2_cmod5n["noise_free"]]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self._cor_wv2_cmod5n["noise_free"]]).astype(np.float32),
+        )
         data_vars["correction_wv1_cmod5n_xsarsea_10ws"] = (
-            ("number_of_wm_correction",), np.array([self._cor_wv1_cmod5n_xsarsea["noise_free"]]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self._cor_wv1_cmod5n_xsarsea["noise_free"]]).astype(np.float32),
+        )
         data_vars["correction_wv2_cmod5n_xsarsea_10ws"] = (
-            ("number_of_wm_correction",), np.array([self._cor_wv2_cmod5n_xsarsea["noise_free"]]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self._cor_wv2_cmod5n_xsarsea["noise_free"]]).astype(np.float32),
+        )
         data_vars["nbptsNRCSbias_wv1_10ws"] = (
-            ("number_of_wm_correction",), np.array([self.nb_inc1_corr["noise_free"]]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self.nb_inc1_corr["noise_free"]]).astype(np.float32),
+        )
         data_vars["nbptsNRCSbias_wv2_10ws"] = (
-            ("number_of_wm_correction",), np.array([self.nb_inc2_corr["noise_free"]]).astype(np.float32))
+            ("number_of_wm_correction",),
+            np.array([self.nb_inc2_corr["noise_free"]]).astype(np.float32),
+        )
 
         polarisation_bytes = np.array([self.polarisation.encode("utf-8")], dtype="|S1")
-        data_vars["sar_imagette_polarization"] = (("number_of_wm_correction",), polarisation_bytes)
+        data_vars["sar_imagette_polarization"] = (
+            ("number_of_wm_correction",),
+            polarisation_bytes,
+        )
 
-        ds = xr.Dataset(data_vars, coords={
-            "number_of_wm_acq": np.arange(nber),
-            "number_of_wm_correction": np.arange(1),
-            "classifchars": np.arange(3),
-        })
+        ds = xr.Dataset(
+            data_vars,
+            coords={
+                "number_of_wm_acq": np.arange(nber),
+                "number_of_wm_correction": np.arange(1),
+                "classifchars": np.arange(3),
+            },
+        )
         ds.attrs["producer"] = "CERSAT"
         ds.attrs["project"] = "MPC-sentinel1"
         ds.attrs["time_unit"] = _time_unit()
@@ -847,9 +1122,20 @@ class WVcalibrator:
 
 
 def PlotNRCSvsWindPerSafe(
-    _spd_coloc_ecmwf, inc_1_, inc_2_, _cor_wv1, _cor_wv2, orbit_name, sigma0_gmf, _sig_sar,
-    path_out_netcdf, pol, fighandler=None, suffix_output: str | None = None, gmf_name: str | None = None,
-):
+    _spd_coloc_ecmwf: Any,
+    inc_1_: Any,
+    inc_2_: Any,
+    _cor_wv1: float,
+    _cor_wv2: float,
+    orbit_name: str,
+    sigma0_gmf: Any,
+    _sig_sar: Any,
+    path_out_netcdf: Any,
+    pol: str,
+    fighandler: Any = None,
+    suffix_output: str = "",
+    gmf_name: str = "",
+) -> tuple[Path, Any]:
     """Constant calval SAR figure (published aside of the correction constant)."""
     logger.info("NRCS plot Sentinel-1 SAFE file: %s", orbit_name)
     satellite = orbit_name[0:3]
@@ -862,33 +1148,63 @@ def PlotNRCSvsWindPerSafe(
     date_sar1 = datetime.strptime(date_orbit1 + "_" + hour_orbit1, "%Y%m%d_%H%M%S")  # noqa: DTZ007
     date_sar2 = datetime.strptime(date_orbit2 + "_" + hour_orbit2, "%Y%m%d_%H%M%S")  # noqa: DTZ007
     fig = fighandler if fighandler is not None else plt.figure()
-    plt.plot(_spd_coloc_ecmwf[inc_1_], 10 * np.log10(sigma0_gmf[inc_1_]), ".b", label="model WV1")
-    plt.plot(_spd_coloc_ecmwf[inc_2_], 10 * np.log10(sigma0_gmf[inc_2_]), ".r", label="model WV2")
-    plt.plot(_spd_coloc_ecmwf[inc_1_], 10 * np.log10(_sig_sar[inc_1_]), "ob", label="SAR WV1",
-             markeredgecolor="k")
-    plt.plot(_spd_coloc_ecmwf[inc_2_], 10 * np.log10(_sig_sar[inc_2_]), "or", label="SAR WV2",
-             markeredgecolor="k")
+    plt.plot(
+        _spd_coloc_ecmwf[inc_1_],
+        10 * np.log10(sigma0_gmf[inc_1_]),
+        ".b",
+        label="model WV1",
+    )
+    plt.plot(
+        _spd_coloc_ecmwf[inc_2_],
+        10 * np.log10(sigma0_gmf[inc_2_]),
+        ".r",
+        label="model WV2",
+    )
+    plt.plot(
+        _spd_coloc_ecmwf[inc_1_],
+        10 * np.log10(_sig_sar[inc_1_]),
+        "ob",
+        label="SAR WV1",
+        markeredgecolor="k",
+    )
+    plt.plot(
+        _spd_coloc_ecmwf[inc_2_],
+        10 * np.log10(_sig_sar[inc_2_]),
+        "or",
+        label="SAR WV2",
+        markeredgecolor="k",
+    )
     plt.legend(loc="lower left")
     plt.grid()
     plt.axvspan(7.0 - 3.0, 7.0 + 3.0, facecolor="g", alpha=0.25)
 
-    plt.annotate(f"diff model-SAR WV2: {_cor_wv2:0.5} dB", xy=(11, -32.5), color=("red"))
-    plt.annotate(f"diff model-SAR WV1: {_cor_wv1:0.5} dB", xy=(11, -35.0), color=("blue"))
+    plt.annotate(
+        f"diff model-SAR WV2: {_cor_wv2:0.5} dB", xy=(11, -32.5), color=("red")
+    )
+    plt.annotate(
+        f"diff model-SAR WV1: {_cor_wv1:0.5} dB", xy=(11, -35.0), color=("blue")
+    )
 
     plt.xlabel("Wind Speed ECMWF [m/s]")
     plt.ylabel(pol + " NRCS [dB]")
-    plt.title(satellite + " - " + str(date_sar1) + " - " + str(date_sar2) + " " + gmf_name)
+    plt.title(
+        satellite + " - " + str(date_sar1) + " - " + str(date_sar2) + " " + gmf_name
+    )
     plt.ylim((-40, 5))
     plt.xlim((0, max([max(_spd_coloc_ecmwf), 15])))
 
-    file_out = (
-        Path(path_out_netcdf)
-        / ("wind_vs_sig_calibrated_" + gmf_name + "_" + orbit_name[:-5] + suffix_output + ".png")
+    file_out = Path(path_out_netcdf) / (
+        "wind_vs_sig_calibrated_"
+        + str(gmf_name)
+        + "_"
+        + orbit_name[:-5]
+        + str(suffix_output)
+        + ".png"
     )
     return file_out, fig
 
 
-def SaveNRCSvsWindPlot(file_out, fig, dpi: int = 150):
+def SaveNRCSvsWindPlot(file_out: Path, fig: Any, dpi: int = 150) -> None:
     """Save the NRCS vs wind figure and set group-readable permissions."""
     fig.savefig(file_out, dpi=dpi)
     try:
@@ -897,10 +1213,14 @@ def SaveNRCSvsWindPlot(file_out, fig, dpi: int = 150):
         logger.info("cannot change permission on %s", file_out)
 
 
-def sequentialListOfSAfeAnalyse(listSAFE, msk, path_out):
+def sequentialListOfSAfeAnalyse(
+    listSAFE: list[str], msk: xr.Dataset, path_out: str
+) -> None:
     """Analyse a list of SAFE sequentially (writes NetCDF only, no pickle)."""
-    cptu = collections.defaultdict(int)
-    logger.info("sequentialListOfSAfeAnalyse | number of safe to analyse %s", len(listSAFE))
+    cptu: dict[str, int] = collections.defaultdict(int)
+    logger.info(
+        "sequentialListOfSAfeAnalyse | number of safe to analyse %s", len(listSAFE)
+    )
     for safe_file in listSAFE:
         clean_safe = safe_file.strip("\n") if "\n" in safe_file else safe_file
         logger.debug("safe %s", clean_safe)

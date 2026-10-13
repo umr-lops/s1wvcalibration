@@ -5,12 +5,19 @@ Ported from ``qualitycheck/theorical_azimuth_cutoff_justinStopa_acCalc.py``.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 __all__ = ["acCalc"]
 
 
-def acCalc(s, f, th, ia, ta, hv):
+def acCalc(
+    s: NDArray, f: NDArray, th: NDArray, ia: NDArray, ta: NDArray, hv: float
+) -> NDArray:
     """Compute the azimuth cutoff (m) from a wave spectrum.
 
     Args:
@@ -59,7 +66,7 @@ def acCalc(s, f, th, ia, ta, hv):
     return (2 * np.pi**2 * hv) * np.sqrt(vk)  # azimuth-cutoff (m)
 
 
-def add_spc_tail(f_arr, f, m, mF):
+def add_spc_tail(f_arr: NDArray, f: NDArray, m: int, mF: float) -> float:
     """Add a f^-5 high-frequency tail to spectrum moment (from Justin Stopa)."""
     tailpower = 5
     ddf = 0.01
@@ -71,9 +78,11 @@ def add_spc_tail(f_arr, f, m, mF):
 
     eps = np.finfo(float).eps
     idd = np.where(np.abs(f_arr) < eps)
-    idd = len(f) - 1 if idd[0].size == 0 else np.amin(idd) - 1
+    idd_int = len(f) - 1 if idd[0].size == 0 else int(np.amin(idd)) - 1
     ff = np.arange(1, np.round(mF / ddf)) * ddf + f[-1]
-    f_arr = np.append(f_arr[1:idd], [f_arr[idd] * (f[idd] / ff) ** tailpower])
-    dff = np.append(df[1:idd], np.tile(ddf, (len(ff), 1)))
-    ff = np.append(f[1:idd], ff)
+    f_arr = np.append(
+        f_arr[1:idd_int], [f_arr[idd_int] * (f[idd_int] / ff) ** tailpower]
+    )
+    dff = np.append(df[1:idd_int], np.tile(ddf, (len(ff), 1)))
+    ff = np.append(f[1:idd_int], ff)
     return np.sum(ff**m * dff * f_arr)

@@ -15,7 +15,7 @@ Geophysical calibration of Sentinel-1 Wave Mode (WV) observations.
 
 **s1wvcalibration** computes a geophysical calibration constant (a bias in dB)
 for Sentinel-1 Wave Mode acquisitions. WV mode has no corner reflectors or
-transponders, so the calibration is *relative*: each 20x20 km WV imagette is
+transponders, so the calibration is _relative_: each 20x20 km WV imagette is
 compared against an empirical Geophysical Model Function (GMF) — CMOD5n — fed
 with colocated ECMWF winds. The difference between the (denoised) SAR NRCS and
 the GMF-predicted NRCS is the calibration bias, computed per sub-swath (WV1 /
@@ -33,9 +33,8 @@ MPC-Sentinel1 WV calibration pipeline (`computeWVconstantecalibration.py`).
 
 ### GMF (NRCS model)
 
-The GMF NRCS is computed with
-[xsarsea](https://pypi.org/project/xsarsea/) (`windspeed.get_model("cmod5n")`),
-which replaces the legacy `sar.utils.gmf`.
+The GMF NRCS is computed with [xsarsea](https://pypi.org/project/xsarsea/)
+(`windspeed.get_model("cmod5n")`), which replaces the legacy `sar.utils.gmf`.
 
 ### Configuration
 
@@ -45,12 +44,12 @@ This replaces the legacy `shared_information` module.
 
 ### Dependencies
 
-| Package         | Role                                             |
-| --------------- | ------------------------------------------------ |
-| [xsar](https://pypi.org/project/xsar/)       | Sentinel-1 Level-1 SLC reader                    |
-| [xsarsea](https://pypi.org/project/xsarsea/) | GMF (cmod5n / cmod5 / cmodifremer) NRCS models   |
-| numpy, scipy    | numerical core                                   |
-| xarray, netCDF4, h5netcdf | NetCDF I/O                        |
+| Package                                      | Role                                           |
+| -------------------------------------------- | ---------------------------------------------- |
+| [xsar](https://pypi.org/project/xsar/)       | Sentinel-1 Level-1 SLC reader                  |
+| [xsarsea](https://pypi.org/project/xsarsea/) | GMF (cmod5n / cmod5 / cmodifremer) NRCS models |
+| numpy, scipy                                 | numerical core                                 |
+| xarray, netCDF4, h5netcdf                    | NetCDF I/O                                     |
 
 ## Installation
 

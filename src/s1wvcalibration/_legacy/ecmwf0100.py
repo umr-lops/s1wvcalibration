@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
-from datetime import timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 import netCDF4 as nc
@@ -34,7 +34,9 @@ def readfile(fname: str) -> dict:
     ecmwf_data: dict = {}
     ecmwf_data["lat"] = data.variables["Latitude"][::].squeeze()
     ecmwf_data["lon"] = data.variables["Longitude"][::].squeeze()
-    ecmwf_data["time"] = nc.num2date(data.variables["time"][:], data.variables["time"].units)
+    ecmwf_data["time"] = nc.num2date(
+        data.variables["time"][:], data.variables["time"].units
+    )
     ecmwf_data["uwind"] = data.variables["10U"][::].squeeze()
     ecmwf_data["vwind"] = data.variables["10V"][::].squeeze()
     ecmwf_data["zon"] = ecmwf_data["uwind"]
@@ -59,7 +61,12 @@ def read_full_file(fname: str) -> dict:
     return ecmwf_data
 
 
-def findfile(fltdate, path_light: str | None = None, path_full: str | None = None, typee: str = "light") -> str:
+def findfile(
+    fltdate: datetime | float,
+    path_light: str | None = None,
+    path_full: str | None = None,
+    typee: str = "light",
+) -> str:
     """Return the path of the nearest hourly ECMWF file for *fltdate*.
 
     Args:
@@ -81,7 +88,8 @@ def findfile(fltdate, path_light: str | None = None, path_full: str | None = Non
     logger.debug("reader_ecmwf_0100 ... findfile | %s", date)
 
     datefile = [
-        dt.datetime(date.year, date.month, date.day, hour, tzinfo=_UTC) for hour in ecmwf_hours
+        dt.datetime(date.year, date.month, date.day, hour, tzinfo=_UTC)
+        for hour in ecmwf_hours
     ]
     datefile.append(datefile[0] + dt.timedelta(days=1))
 
@@ -92,7 +100,17 @@ def findfile(fltdate, path_light: str | None = None, path_full: str | None = Non
     year = nearest_date.year
     nomencl = nearest_date.strftime("%Y%m%d%H%M")
     if typee == "light":
-        ecmwf_file = Path(path_light) / str(year) / f"{doy:03d}" / f"ECMWF_FORECAST_0100_{nomencl}_10U_10V.nc"
+        ecmwf_file = (
+            Path(path_light)
+            / str(year)
+            / f"{doy:03d}"
+            / f"ECMWF_FORECAST_0100_{nomencl}_10U_10V.nc"
+        )
     else:  # full
-        ecmwf_file = Path(path_full) / str(year) / f"{doy:03d}" / f"ECMWF_FORECAST_0100_{nomencl}.nc"
+        ecmwf_file = (
+            Path(path_full)
+            / str(year)
+            / f"{doy:03d}"
+            / f"ECMWF_FORECAST_0100_{nomencl}.nc"
+        )
     return str(ecmwf_file)

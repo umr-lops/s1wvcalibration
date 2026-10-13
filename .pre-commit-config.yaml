@@ -58,11 +58,17 @@ repos:
         additional_dependencies:
           - nox
           - pytest
+          - types-PyYAML
 
   - repo: https://github.com/codespell-project/codespell
     rev: "v2.4.1"
     hooks:
       - id: codespell
+        args:
+          [
+            "--ignore-words-list",
+            "complet,comparaison,environnement,existant,mesures,objet,remplace,remplacement,reste,valide",
+          ]
         additional_dependencies:
           - tomli; python_version<'3.11'
 

@@ -54,7 +54,9 @@ def _classif_glob_pattern(base_safe: str) -> tuple[Path, str]:
     The wildcard (replacing the SAFE unique id) lives in the directory name, so
     the pattern is anchored on the concrete ``.../YYYY/MM/DD`` base directory.
     """
-    date_dt = dt.datetime.strptime(base_safe.split("_")[5], "%Y%m%dT%H%M%S").replace(tzinfo=_UTC)
+    date_dt = dt.datetime.strptime(base_safe.split("_")[5], "%Y%m%dT%H%M%S").replace(
+        tzinfo=_UTC
+    )
     unique_id = base_safe.split("_")[9]
     base = (
         Path(_classif_root())
@@ -65,5 +67,7 @@ def _classif_glob_pattern(base_safe: str) -> tuple[Path, str]:
     if "OCN" in base_safe:
         star_dir = base_safe.replace("OCN", "DL").replace(unique_id, "*")
     else:  # SLC
-        star_dir = base_safe.replace("SLC", "DL").replace(unique_id, "*").replace("1SS", "2SS")
+        star_dir = (
+            base_safe.replace("SLC", "DL").replace(unique_id, "*").replace("1SS", "2SS")
+        )
     return base, f"{star_dir}/DL_Summary.xml"

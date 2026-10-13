@@ -1,0 +1,26 @@
+# Conda-forge environment for CI tests.
+#
+# The geospatial stack (GDAL, dask, xarray, ...) must come from conda-forge where
+# GDAL is prebuilt; pip-installing it tries to build from source and fails without
+# gdal-config. `xsar` / `xsarsea` are NOT on conda-forge, so they are pip-installed
+# in the workflow after this env is created (pip sees the conda GDAL as satisfied).
+#
+# `python` is intentionally not pinned here; the workflow injects the version via
+# `setup-micromamba` `create-args: python=<matrix.python-version>`.
+channels:
+  - conda-forge
+dependencies:
+  - pip
+  - gdal
+  - dask
+  - xarray
+  - numpy
+  - scipy
+  - matplotlib
+  - netcdf4
+  - h5netcdf
+  - h5py
+  - pyyaml
+  - pytest
+  - pytest-cov
+  - pytest-timeout

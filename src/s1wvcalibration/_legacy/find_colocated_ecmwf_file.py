@@ -19,7 +19,9 @@ __all__ = ["find_colocated_ecmwf_file"]
 _UTC = timezone.utc
 
 
-def find_colocated_ecmwf_file(date: datetime, path_wind: str | None = None, hour_step: int | None = None) -> dict:
+def find_colocated_ecmwf_file(
+    date: datetime, path_wind: str | None = None, hour_step: int | None = None
+) -> dict:
     """Locate the METEOFRANCE_CEP netCDF file closest to *date*.
 
     Args:

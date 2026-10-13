@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 import numpy as np
 from numpy import mod
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
-def format_angle(angle, compass: bool = False):
+
+def format_angle(angle: float | NDArray, compass: bool = False) -> Any:
     """Wrap *angle* (deg) to [-180, 180] or [0, 360] if ``compass``."""
     theta = mod(angle, 360.0)
     try:
@@ -31,7 +36,9 @@ def format_angle(angle, compass: bool = False):
     return theta
 
 
-def format_angle_v2(angle, cycle: float = 360, compass_format: bool = False):
+def format_angle_v2(
+    angle: float | NDArray, cycle: float = 360, compass_format: bool = False
+) -> Any:
     """Wrap *angle* (deg) to [-cycle/2, cycle/2] or [0, cycle] if compass_format."""
     theta = np.mod(angle, cycle)
     try:
