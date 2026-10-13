@@ -81,3 +81,6 @@ jobs:
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          # Fail the job when the upload itself errors (e.g. missing token)
+          # instead of silently passing with no data uploaded.
+          fail_ci_if_error: true
