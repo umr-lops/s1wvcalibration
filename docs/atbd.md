@@ -126,21 +126,21 @@ For each imagette centre `(lon_sar, lat_sar)` (all datetimes UTC):
 
 An imagette is **rejected** if any of these hold:
 
-| Filter              | Condition                               | Reason            |
-| ------------------- | --------------------------------------- | ----------------- | ----------------------------- | ------------------- |
-| Land                | `is_land(lon, lat) == True`             | only ocean scenes |
-| High latitude       | `                                       | lat               | > max_latitude` (default 50°) | avoid sea ice / MIZ |
-| Non-finite position | `not (isfinite(lon) and isfinite(lat))` | invalid geo       |
-| Non-positive sigma0 | `σ⁰ ≤ 0`                                | invalid NRCS      |
+| Filter              | Condition                                     | Reason            |
+| ------------------- | --------------------------------------------- | ----------------- |
+| Land                | `is_land(lon, lat) == True`                   | only ocean scenes |
+| High latitude       | `abs(lat) > max_latitude` (default 50°)       | avoid sea ice / MIZ |
+| Non-finite position | `not (isfinite(lon) and isfinite(lat))`       | invalid geo       |
+| Non-positive sigma0 | `σ⁰ ≤ 0`                                      | invalid NRCS      |
 
 It is **kept** for the bias when additionally:
 
-| Selection             | Condition       | Use              |
-| --------------------- | --------------- | ---------------- | -------- | --------------------- |
-| WV1                   | incidence < 30° | first sub-swath  |
-| WV2                   | incidence > 30° | second sub-swath |
-| Classical sweet spot  | `               | spd − 7          | < 3` m/s | main calibration      |
-| Noise-free sweet spot | `               | spd − 10         | < 3` m/s | secondary calibration |
+| Selection             | Condition                 | Use                 |
+| --------------------- | ------------------------- | ------------------- |
+| WV1                   | `incidence < 30°`         | first sub-swath     |
+| WV2                   | `incidence > 30°`         | second sub-swath    |
+| Classical sweet spot  | `abs(spd − 7) < 3` (m/s)  | main calibration    |
+| Noise-free sweet spot | `abs(spd − 10) < 3` (m/s) | secondary calibration |
 
 > The historical slide mentions ±55°; the code uses `high_lat_threshold = 50`
 > (changed 01/02/2017). Override with `--maxlat`.
