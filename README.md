@@ -78,6 +78,21 @@ usage: s1wvcalib [-h] [-o OUTPUT] -i INPUT [--maxlat MAXLAT]
 Per-SAFE NetCDF calibration files are written under the configured
 `analysis_dir` (see `config.yaml`).
 
+## Configuration
+
+The packaged `config.yaml` holds the `root_directory` (under which all the
+`paths.*` entries are resolved) and the calibration constants (high-latitude
+threshold, wind ranges, ECMWF version, ...). To point the library at your
+cluster's data tree, drop a `localconfig.yaml` next to it (or set
+`$S1WVCALIB_CONFIG` to its path); it is deep-merged over the defaults, so a
+single-leaf override is enough:
+
+```yaml
+# localconfig.yaml
+paths:
+  root_directory: /path/to/mpc-sentinel1
+```
+
 ## Project structure
 
 ```
@@ -87,10 +102,15 @@ s1wvcalibration/
 │       ├── __init__.py        # Package entry point, exposes __version__
 │       ├── calibration.py     # Core calibration engine + CLI entry point
 │       ├── config.py          # config.yaml loading (replaces shared_information)
-│       └── config.yaml        # Default paths & calibration constants
+│       ├── config.yaml        # Default paths & calibration constants
+│       └── _legacy/           # Modules ported from mpcsentinellibs
+│                              # (gmf, xsar_reader, ecmwf, ww3, ...)
 ├── tests/
 │   ├── test_package.py        # Package metadata tests
-│   └── test_calibration.py    # Unit + parity tests
+│   ├── test_gmf_parity.py     # GMF / azimuth parity vs the legacy code
+│   ├── test_l1_parity.py      # L1 reader parity vs a production NetCDF
+│   └── test_netcdf_parity.py  # End-to-end NetCDF parity
+├── docs/                      # Sphinx documentation
 ├── pyproject.toml
 └── README.md
 ```
