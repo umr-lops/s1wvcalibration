@@ -93,8 +93,12 @@ def is_land(lon: float, lat: float, dsmask: xr.Dataset) -> bool:
     """
     lons = dsmask.longitude
     lats = dsmask.latitude
-    lon_idx = np.abs(lons - lon).argmin()
-    lat_idx = np.abs(lats - lat).argmin()
+    # Nearest grid-point index. Call argmin on the raw values: DataArray.argmin()
+    # with no dim/axis is deprecated (and will change to return a dict of per-
+    # dim indices), which would break this and, under a warnings-as-errors suite,
+    # raise instead of computing the index.
+    lon_idx = int(np.argmin(np.abs(lons.values - lon)))
+    lat_idx = int(np.argmin(np.abs(lats.values - lat)))
     flag = dsmask.quality_flag.isel(longitude=lon_idx, latitude=lat_idx).item()
     return flag != 0
 
@@ -899,7 +903,11 @@ class WVcalibrator:
         )
         data_vars["doppler_centroid_quality"] = (
             ("number_of_wm_acq",),
-            self._quality_doppler_centroid.astype(np.int8),
+            # The legacy wrote this float array into a netCDF4 byte variable,
+            # where unavailable (NaN, e.g. OCN SAFEs) became 0. Reproduce that
+            # explicitly: a bare .astype(np.int8) of NaN warns (and errors
+            # under -Werror) and is not guaranteed to yield 0.
+            np.nan_to_num(self._quality_doppler_centroid, nan=0.0).astype(np.int8),
             {
                 "descr": "True means the RMS of doppler centroid fit with estimates is below the threshold"
             },
