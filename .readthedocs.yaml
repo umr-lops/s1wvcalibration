@@ -1,29 +1,26 @@
 # Read the Docs configuration file
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
 #
-# Conda build (not uv): the project runtime deps pull GDAL (via xsar/xsarsea),
-# which cannot be built from source on RTD. The conda-forge base env provides a
-# prebuilt GDAL, so RTD's project install and the pip installs below see it as
-# already satisfied (same recipe as the CI checks job,
-# ci/requirements/environment.rtd.yml). `conda` and `build` are top-level keys
-# in the v2 schema.
+# The project runtime deps pull GDAL (via xsar/xsarsea), which cannot be built
+# from source on RTD (no gdal-config). So a conda-forge environment with a
+# prebuilt GDAL is created explicitly (same packages as the CI checks job,
+# ci/requirements/environment.rtd.yml) and pip installs xsar/xsarsea into it
+# (pip sees the conda GDAL as satisfied). Note: when `build.commands` is set,
+# RTD skips its default install steps entirely (including creating
+# `conda.environment`), hence the explicit `conda env create` below.
 
 version: 2
 
 build:
   os: ubuntu-24.04
   tools:
-    # A conda variant is required for RTD to actually create/activate the
-    # `conda.environment` below; with a plain python (or none) RTD skips the
-    # conda setup entirely and `pip` is not found when the commands run.
+    # a conda tool is needed so `conda` is on PATH for the commands below
     python: "mambaforge-latest"
   commands:
-    - pip install "xsar[s1]" xsarsea
-    - pip install -e . --no-deps
-    - pip install "sphinx>=7.0" "myst_parser>=0.13" sphinx_copybutton
-      sphinx_autodoc_typehints "furo>=2023.08.17"
-    - sphinx-build -T -b html -d docs/_build/doctrees -D language=en docs
-      $READTHEDOCS_OUTPUT/html
-
-conda:
-  environment: ci/requirements/environment.rtd.yml
+    - conda env create -n s1wvrtd -f ci/requirements/environment.rtd.yml
+    - conda run -n s1wvrtd pip install "xsar[s1]" xsarsea
+    - conda run -n s1wvrtd pip install -e . --no-deps
+    - conda run -n s1wvrtd pip install "sphinx>=7.0" "myst_parser>=0.13"
+      sphinx_copybutton sphinx_autodoc_typehints "furo>=2023.08.17"
+    - conda run -n s1wvrtd sphinx-build -T -b html -d docs/_build/doctrees -D
+      language=en docs $READTHEDOCS_OUTPUT/html
