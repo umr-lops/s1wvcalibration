@@ -12,7 +12,9 @@ if TYPE_CHECKING:
 __all__ = ["get_polarization_ratio"]
 
 
-def get_polarization_ratio(u10: NDArray, inc: NDArray, phi: Any = None, name: str = "mouche1") -> NDArray:
+def get_polarization_ratio(
+    u10: NDArray, inc: NDArray, phi: Any = None, name: str = "mouche1"
+) -> NDArray:
     """HH/VV polarization ratio used to convert the VV GMF to HH.
 
     Args:
@@ -41,7 +43,11 @@ def get_polarization_ratio(u10: NDArray, inc: NDArray, phi: Any = None, name: st
         C1_theta = (P0_theta - Ppi_theta) / 2
         C2_theta = (P0_theta + Ppi_theta - 2 * Ppi2_theta) / 4
 
-        return C0_theta + C1_theta * np.cos(phi * np.pi / 180.0) + C2_theta * np.cos(2 * phi * np.pi / 180.0)
+        return (
+            C0_theta
+            + C1_theta * np.cos(phi * np.pi / 180.0)
+            + C2_theta * np.cos(2 * phi * np.pi / 180.0)
+        )
 
     A = 0.00799793
     B = 0.125465

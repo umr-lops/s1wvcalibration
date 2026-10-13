@@ -20,7 +20,12 @@ __all__ = ["interp_polar_spectrum"]
 
 
 def interp_polar_spectrum(
-    k_out: NDArray, phi_out: NDArray, spec_in: NDArray, k_in: NDArray, phi_in: NDArray, order: str = "C"
+    k_out: NDArray,
+    phi_out: NDArray,
+    spec_in: NDArray,
+    k_in: NDArray,
+    phi_in: NDArray,
+    order: str = "C",
 ) -> NDArray:
     """Interpolate the input polar spectrum onto the (k_out, phi_out) grid.
 
@@ -34,7 +39,7 @@ def interp_polar_spectrum(
     if spec_in.shape[0] == len(phi_in) and spec_in.shape[1] == len(k_in):
         logger.debug("shape input spectra seems ok")
     else:
-        logger.warning("shape input spectra doesnt match (phi,k) expected dimensions")
+        logger.warning("shape input spectra does not match (phi,k) expected dimensions")
         msg = f"wrong input spectra shape {spec_in.shape[0]}x{spec_in.shape[1]} it needs phi,k order"
         raise ValueError(msg)
 

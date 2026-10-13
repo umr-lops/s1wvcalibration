@@ -36,7 +36,9 @@ def format_angle(angle: float | NDArray, compass: bool = False) -> Any:
     return theta
 
 
-def format_angle_v2(angle: float | NDArray, cycle: float = 360, compass_format: bool = False) -> Any:
+def format_angle_v2(
+    angle: float | NDArray, cycle: float = 360, compass_format: bool = False
+) -> Any:
     """Wrap *angle* (deg) to [-cycle/2, cycle/2] or [0, cycle] if compass_format."""
     theta = np.mod(angle, cycle)
     try:

@@ -60,7 +60,12 @@ def cmod_ifr2(T: NDArray, wind: NDArray, dir: NDArray) -> NDArray:
         2 * vitnor * pv2 - pv1
         pt1 = tetanor
         pt2 = 2 * tetanor * pt1 - 1.0
-        return Cc[8] + Cc[9] * pv1 + (Cc[10] + Cc[11] * pv1) * pt1 + (Cc[12] + Cc[13] * pv1) * pt2
+        return (
+            Cc[8]
+            + Cc[9] * pv1
+            + (Cc[10] + Cc[11] * pv1) * pt1
+            + (Cc[12] + Cc[13] * pv1) * pt2
+        )
 
     def funcb2(Cc: NDArray, x: NDArray, V: NDArray) -> NDArray:
         tetanor = (2.0 * x - (18.0 + 58.0)) / (58.0 - 18.0)
@@ -85,7 +90,7 @@ def cmod_ifr2(T: NDArray, wind: NDArray, dir: NDArray) -> NDArray:
     P1 = tetai
     P2 = (3.0 * xSQ - 1.0) / 2.0
     P3 = (5.0 * xSQ - 3.0) * tetai / 2.0
-    ALPH = C[1] + C[2] * P1 + C[3] * P2 + C[4] * P3
+    ALPHA = C[1] + C[2] * P1 + C[3] * P2 + C[4] * P3
     BETA = C[5] + C[6] * P1 + C[7] * P2
     ang = dir
     cosi = cos(ang * pi / 180.0)
@@ -95,11 +100,13 @@ def cmod_ifr2(T: NDArray, wind: NDArray, dir: NDArray) -> NDArray:
 
     vbiais = 0.0
     SPD_Wind = v - vbiais
-    b0 = pow(10.0, (ALPH + BETA * sqrt(SPD_Wind)))
+    b0 = pow(10.0, (ALPHA + BETA * sqrt(SPD_Wind)))
     return b0 * (1.0 + b1 * cosi + tanh(b2) * cos2i)
 
 
-def cmod_ifremer_matrix(T: NDArray, wind: NDArray, dir: NDArray, model: str = "CMOD-IFR2") -> NDArray:
+def cmod_ifremer_matrix(
+    T: NDArray, wind: NDArray, dir: NDArray, model: str = "CMOD-IFR2"
+) -> NDArray:
     """Dispatch to :func:`cmod_ifr2` for the *model* name."""
     if model == "CMOD-IFR2":
         return cmod_ifr2(T, wind, dir)

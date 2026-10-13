@@ -15,7 +15,9 @@ if TYPE_CHECKING:
 __all__ = ["acCalc"]
 
 
-def acCalc(s: NDArray, f: NDArray, th: NDArray, ia: NDArray, ta: NDArray, hv: float) -> NDArray:
+def acCalc(
+    s: NDArray, f: NDArray, th: NDArray, ia: NDArray, ta: NDArray, hv: float
+) -> NDArray:
     """Compute the azimuth cutoff (m) from a wave spectrum.
 
     Args:
@@ -78,7 +80,9 @@ def add_spc_tail(f_arr: NDArray, f: NDArray, m: int, mF: float) -> float:
     idd = np.where(np.abs(f_arr) < eps)
     idd_int = len(f) - 1 if idd[0].size == 0 else int(np.amin(idd)) - 1
     ff = np.arange(1, np.round(mF / ddf)) * ddf + f[-1]
-    f_arr = np.append(f_arr[1:idd_int], [f_arr[idd_int] * (f[idd_int] / ff) ** tailpower])
+    f_arr = np.append(
+        f_arr[1:idd_int], [f_arr[idd_int] * (f[idd_int] / ff) ** tailpower]
+    )
     dff = np.append(df[1:idd_int], np.tile(ddf, (len(ff), 1)))
     ff = np.append(f[1:idd_int], ff)
     return np.sum(ff**m * dff * f_arr)

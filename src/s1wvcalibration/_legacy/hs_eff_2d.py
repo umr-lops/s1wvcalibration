@@ -41,12 +41,16 @@ def get_S1_hs_eff_2D_cutoff(
     toto_ksar = copy.copy(k_sar)
     logger.debug("k_sar shape: %s", k_sar.shape)
     az_cutoff = file_handler.variables["oswAzCutoff"][0][0]
-    if isinstance(az_cutoff, np.ma.core.MaskedConstant) or isinstance(s1a_spec, np.float64):
+    if isinstance(az_cutoff, np.ma.core.MaskedConstant) or isinstance(
+        s1a_spec, np.float64
+    ):
         logger.debug("AzCutOf is masked")
         return (np.nan, np.nan, np.nan, np.nan, np.nan, np.nan)
 
     mask = s1a_spec * 0.0
-    mask_eff, _, phi_sar = get_WV_2D_cutoff(file_handler, lowfreqfilter=lowfreqfilter, plot_dev=plot_dev)
+    mask_eff, _, phi_sar = get_WV_2D_cutoff(
+        file_handler, lowfreqfilter=lowfreqfilter, plot_dev=plot_dev
+    )
 
     dk_sar = np.ma.zeros(k_sar.size)
     dk_sar[0] = toto_ksar[1] - toto_ksar[0]
@@ -107,7 +111,9 @@ def get_S1_hs_eff_2D_cutoff(
 
 
 def get_ww3_hs_eff_2D_cutoff(
-    file_handler_s1: Any, file_handler_ww3: Any, osw: Any = None  # noqa: ARG001 - legacy signature
+    file_handler_s1: Any,
+    file_handler_ww3: Any,
+    osw: Any = None,  # noqa: ARG001 - legacy signature
 ) -> tuple[float, ...]:
     """WW3 spectrum regridded on the S-1 grid and masked with the S-1 2D cutoff.
 
@@ -133,7 +139,9 @@ def get_ww3_hs_eff_2D_cutoff(
     ww3_spec = file_handler_ww3.variables["polSpec"][:]
     k_ww3 = file_handler_ww3.variables["k"][:]
     phi_ww3 = file_handler_ww3.variables["phi"][:]
-    ww3_spec_interp = interp_polar_spectrum(toto_ksar, phi_sar, ww3_spec, k_ww3, phi_ww3)
+    ww3_spec_interp = interp_polar_spectrum(
+        toto_ksar, phi_sar, ww3_spec, k_ww3, phi_ww3
+    )
 
     k_eff_2D = np.array((np.tile(k_eff, (toto_ksar.size, 1))).T)
     mask_eff = s1a_spec * 0.0
@@ -182,12 +190,12 @@ def get_ww3_hs_eff_2D_cutoff(
     energy_not_sumed = ww3_spec_interp * mask_eff * kdphi_sar
     maskpartition = partoch != 1
     energy_not_sumed[maskpartition] = 0
-    denominater = np.sum(energy_not_sumed)
+    denominator = np.sum(energy_not_sumed)
     ww3wl_partSAR1_weightened = np.divide(
         np.sum(energy_not_sumed * 2 * np.pi / k_sar),
-        denominater,
-        out=np.zeros_like(denominater, dtype=float),
-        where=denominater != 0,
+        denominator,
+        out=np.zeros_like(denominator, dtype=float),
+        where=denominator != 0,
     )
 
     logger.debug("spp_ww3_eff = %s", spp_ww3_eff)

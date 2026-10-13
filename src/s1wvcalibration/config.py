@@ -62,6 +62,7 @@ class Config(TypedDict):
     gmf: _Gmf
     satellites: dict[str, str]
 
+
 #: Directory of the packaged default configuration.
 _PACKAGE_DIR = Path(__file__).parent
 #: Packaged default configuration file.
@@ -90,7 +91,9 @@ def find_local_config() -> Path | None:
         p = Path(env)
         if p.is_file():
             return p
-        logger.warning("%s set to %s which does not exist; ignoring.", CONFIG_ENV_VAR, env)
+        logger.warning(
+            "%s set to %s which does not exist; ignoring.", CONFIG_ENV_VAR, env
+        )
     local = Path.cwd() / "localconfig.yaml"
     if local.is_file():
         return local
@@ -108,7 +111,9 @@ def load_config() -> Config:
     local_path = find_local_config()
     if local_path is not None:
         local = _load_yaml(local_path)
-        logger.info("Merging local config from %s (keys: %s).", local_path, sorted(local))
+        logger.info(
+            "Merging local config from %s (keys: %s).", local_path, sorted(local)
+        )
         config.update(local)
     return cast("Config", config)
 

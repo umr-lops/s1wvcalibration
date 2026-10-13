@@ -15,7 +15,9 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["read_xml_classif_ID"]
 
-ORDERED_CLASSES_XML = np.array(["AF", "BS", "IB", "LWA", "MCC", "OF", "POS", "RC", "SI", "WS"])
+ORDERED_CLASSES_XML = np.array(
+    ["AF", "BS", "IB", "LWA", "MCC", "OF", "POS", "RC", "SI", "WS"]
+)
 
 
 def read_xml_classif_ID(full_path_xml: str) -> pd.DataFrame:
@@ -44,7 +46,11 @@ def read_xml_classif_ID(full_path_xml: str) -> pd.DataFrame:
                     data[im_id][f"proba_disordered_{jj + 1}"] = ju_flo
                     data[im_id][ORDERED_CLASSES_XML[jj]] = ju_flo
                 all_possible_prob = np.array(
-                    [data[im_id][prob] for prob in data[im_id] if "proba_disordered_" in prob]
+                    [
+                        data[im_id][prob]
+                        for prob in data[im_id]
+                        if "proba_disordered_" in prob
+                    ]
                 )
                 inds_sorted = np.argsort(all_possible_prob)[::-1]
                 all_possible_prob_ordered = np.sort(all_possible_prob)[::-1]

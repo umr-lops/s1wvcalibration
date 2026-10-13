@@ -37,13 +37,17 @@ def get_WV_2D_cutoff(
         value can be kept.
     """
     mask_eff = None
-    logger.debug("enter get_WV_2D_cutoff lowfreqfilter %s plot_dev %s", lowfreqfilter, plot_dev)
+    logger.debug(
+        "enter get_WV_2D_cutoff lowfreqfilter %s plot_dev %s", lowfreqfilter, plot_dev
+    )
     s1a_spec = handlerNC.variables["oswPolSpec"][:].squeeze()
     k_sar = handlerNC.variables["oswK"][:]
     k_cutoff = 2 * np.pi / handlerNC.variables["oswAzCutoff"][0][0]
     k_eff = 2 * np.pi / handlerNC.variables["oswSpecRes"][:].squeeze()
     if isinstance(k_eff, np.ma.core.MaskedConstant):
-        logger.info("compute_2D_cutoff|corrupted file containing oswAngularBinSize dimension=1")
+        logger.info(
+            "compute_2D_cutoff|corrupted file containing oswAngularBinSize dimension=1"
+        )
     else:
         k_eff_2D = np.array((np.tile(k_eff, (k_sar.size, 1))).T)
         mask = s1a_spec * 0.0
@@ -60,7 +64,9 @@ def get_WV_2D_cutoff(
                 "any bins with low frequencies??? %s (%s %s%%)",
                 filterout_low_freq_condition.any(),
                 np.sum(filterout_low_freq_condition),
-                np.sum(filterout_low_freq_condition) * 100 / filterout_low_freq_condition.size,
+                np.sum(filterout_low_freq_condition)
+                * 100
+                / filterout_low_freq_condition.size,
             )
             mask_low_freq[filterout_low_freq_condition] = 0
             mask_eff *= mask_low_freq

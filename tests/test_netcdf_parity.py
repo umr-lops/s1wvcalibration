@@ -65,9 +65,9 @@ _DEFAULT_NEW_NC = (
 )
 
 # Tolerances (float32 reference).
-_DBCONST_ATOL = 5e-3          # reporting GMF constants, dB
-_SAR_ATOL = 1e-4              # SAR-side per-imagette, relative
-_COL_LOC_N_BAD = 3            # max imagettes allowed to differ in wind colocation
+_DBCONST_ATOL = 5e-3  # reporting GMF constants, dB
+_SAR_ATOL = 1e-4  # SAR-side per-imagette, relative
+_COL_LOC_N_BAD = 3  # max imagettes allowed to differ in wind colocation
 
 
 def _ref_nc() -> str:
@@ -83,8 +83,18 @@ def _produce_new_nc() -> str | None:
     safe = _safe()
     out = os.environ.get("S1WVCALIB_E2E_OUT", "/tmp/opencode/e2e_new")
     Path(out).mkdir(parents=True, exist_ok=True)
-    cmd = [sys.executable, "-m", "s1wvcalibration.calibration",
-           "-i", safe, "-o", out, "--ecmwf", "0100", "--overwrite"]
+    cmd = [
+        sys.executable,
+        "-m",
+        "s1wvcalibration.calibration",
+        "-i",
+        safe,
+        "-o",
+        out,
+        "--ecmwf",
+        "0100",
+        "--overwrite",
+    ]
     logger.info("producing end2end netcdf via: %s", " ".join(cmd))
     subprocess.run(cmd, check=True)
     prod = [str(p) for p in Path(out).rglob("*.nc") if "calib" in p.parts]
@@ -146,8 +156,14 @@ def test_e2e_sar_per_imagette(ref, new):
     n = int(ref.dimensions["number_of_wm_acq"].size)
     assert int(new.dimensions["number_of_wm_acq"].size) == n
     for name in (
-        "sig_sar", "sig_sar_denoised", "noise_sar",
-        "nv_sar", "skew_sar", "kurt_sar", "doppler_centroid", "track_angle",
+        "sig_sar",
+        "sig_sar_denoised",
+        "noise_sar",
+        "nv_sar",
+        "skew_sar",
+        "kurt_sar",
+        "doppler_centroid",
+        "track_angle",
     ):
         a = _v(new, name)
         b = _v(ref, name)
@@ -162,8 +178,9 @@ def test_e2e_sar_per_imagette(ref, new):
 def test_e2e_windspeed_bias_and_counts(ref, new):
     """Scalar wind-bias / SWh-bias / nbobs entries match exactly."""
     for name in ref.variables:
-        if ("bias" in name or "nbobs" in name or "nbptsNRCS" in name) and \
-                "number_of_wm_correction" in ref.variables[name].dimensions:
+        if (
+            "bias" in name or "nbobs" in name or "nbptsNRCS" in name
+        ) and "number_of_wm_correction" in ref.variables[name].dimensions:
             a = _v(new, name)
             b = _v(ref, name)
             if not np.isfinite(b[0]):

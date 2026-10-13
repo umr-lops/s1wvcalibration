@@ -62,10 +62,17 @@ def get_meteofrance_cep_0125_wind(
         "speed": sin,
     }
 
-    _times = netCDF4.num2date(data.variables["time"][:], data.variables["time"].getncattr("units"))
+    _times = netCDF4.num2date(
+        data.variables["time"][:], data.variables["time"].getncattr("units")
+    )
     gregtime = _times[0] if isinstance(_times, np.ndarray) else _times
     wind["time"] = dt.datetime(
-        gregtime.year, gregtime.month, gregtime.day, gregtime.hour, gregtime.minute, gregtime.second,
+        gregtime.year,
+        gregtime.month,
+        gregtime.day,
+        gregtime.hour,
+        gregtime.minute,
+        gregtime.second,
         tzinfo=dt.timezone.utc,
     )
 

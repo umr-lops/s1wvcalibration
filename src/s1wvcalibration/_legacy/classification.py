@@ -63,7 +63,9 @@ def get_classification_infos(
                 counters["classif_OK"] += 1
             else:
                 errors["classif_missing_imagette"] += 1
-                logger.info("imagette %s is not present in %s", imagette_number, path_pot_xml)
+                logger.info(
+                    "imagette %s is not present in %s", imagette_number, path_pot_xml
+                )
     else:
         logger.debug("no classif file for pat %s", path_pot_xml)
         errors["no_classification"] += 1

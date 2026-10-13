@@ -52,7 +52,10 @@ def _rejeu_2016_dirs() -> dict:
         "201610": "sentinel-1b/sar-model/ww3spectra/rejeu_2016_06_11_L2/netcdf/",
         "201611": "sentinel-1b/sar-model/ww3spectra/rejeu_2016_06_11_L2/netcdf/",
     }
-    return {"S1A": {k: coloc / v for k, v in s1a.items()}, "S1B": {k: coloc / v for k, v in s1b.items()}}
+    return {
+        "S1A": {k: coloc / v for k, v in s1a.items()},
+        "S1B": {k: coloc / v for k, v in s1b.items()},
+    }
 
 
 def get_ww3spectra_l2_filepath(
@@ -67,7 +70,9 @@ def get_ww3spectra_l2_filepath(
     basename = Path(measu_filepath).name
     satellite = _satellite_name(basename[:3])
     yearmonth = basename.split("-")[4][:6]
-    datedt = dt.datetime.strptime(basename.split("-")[4], "%Y%m%dt%H%M%S").replace(tzinfo=_UTC)
+    datedt = dt.datetime.strptime(basename.split("-")[4], "%Y%m%dt%H%M%S").replace(
+        tzinfo=_UTC
+    )
     logger.debug("provenance of the coloc: %s", use_new_procedure)
     if use_new_procedure is None:
         procedure_coloc = "run_datarmor_satglob"
