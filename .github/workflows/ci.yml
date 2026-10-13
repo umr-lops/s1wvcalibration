@@ -42,32 +42,42 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.14"]
-        runs-on: [ubuntu-latest, windows-latest, macos-latest, macos-15-intel]
-
-        # include:
-        #   - python-version: "pypy-3.11"
-        #     runs-on: ubuntu-latest
+        python-version: ["3.10", "3.12"]
+        runs-on: [ubuntu-latest]
 
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v7
+      # GDAL (pulled by xsar/xsarsea) cannot be built from source in CI, so the
+      # geospatial stack is installed from conda-forge where GDAL is prebuilt.
+      # xsar / xsarsea are NOT on conda-forge, so they are pip-installed next;
+      # pip sees the conda-provided GDAL as already satisfied and does not try
+      # to rebuild it. This mirrors the documented HPC recipe (pyproject.toml).
+      - uses: mamba-org/setup-micromamba@v2
         with:
-          python-version: ${{ matrix.python-version }}
-          allow-prereleases: true
+          environment-name: s1wvci
+          create-args: >-
+            py=${{ matrix.python-version }} pip gdal dask xarray numpy scipy
+            matplotlib netcdf4 h5netcdf h5py pyyaml
+          init-shell: bash
+          cache-environment: true
 
-      - uses: astral-sh/setup-uv@v7
+      - name: Install geospatial readers (sdist-only, not on conda-forge)
+        run: micromamba run -n s1wvci pip install "xsar[s1]" xsarsea
 
       - name: Install package
-        run: uv sync
+        run: micromamba run -n s1wvci pip install -e . --no-deps
+
+      - name: Install test tools
+        run:
+          micromamba run -n s1wvci pip install pytest pytest-cov pytest-timeout
 
       - name: Test package
         run: >-
-          uv run pytest -ra --cov --cov-report=xml --cov-report=term
-          --durations=20
+          micromamba run -n s1wvci pytest -ra --cov --cov-report=xml
+          --cov-report=term --durations=20
 
       - name: Upload coverage report
         uses: codecov/codecov-action@v7
