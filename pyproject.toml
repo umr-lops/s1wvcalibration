@@ -205,3 +205,4 @@ messages_control.disable = [
 
 [project.scripts]
 s1wvcalib = "s1wvcalibration.calibration:entrypoint"
+s1wvfig = "s1wvcalibration.figure:entrypoint"
