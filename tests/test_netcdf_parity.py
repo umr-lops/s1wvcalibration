@@ -41,9 +41,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-import netCDF4
 import numpy as np
 import pytest
+import xarray as xr
 
 from s1wvcalibration.config import data_path
 
@@ -119,7 +119,7 @@ def _produce_new_nc() -> str | None:
 def ref():
     if not Path(_ref_nc()).is_file():
         pytest.skip(f"end2end reference netcdf not available: {_ref_nc()}")
-    return netCDF4.Dataset(_ref_nc())
+    return xr.open_dataset(_ref_nc())
 
 
 @pytest.fixture(scope="module")
@@ -136,11 +136,11 @@ def new():
                 f"end2end produced netcdf not available ({path}); "
                 "set S1WVCALIB_E2E_NEW_NC or S1WVCALIB_E2E_RUN=1 to run the pipeline"
             )
-    return netCDF4.Dataset(path)
+    return xr.open_dataset(path)
 
 
-def _v(ds: netCDF4.Dataset, name: str) -> np.ndarray:
-    return np.asarray(ds.variables[name][:], dtype=np.float64)
+def _v(ds: xr.Dataset, name: str) -> np.ndarray:
+    return np.asarray(ds[name].values, dtype=np.float64)
 
 
 def _max_rel(a: np.ndarray, b: np.ndarray) -> float:
@@ -167,8 +167,8 @@ def test_e2e_reporting_constants(ref, new):
 
 def test_e2e_sar_per_imagette(ref, new):
     """SAR-side per-imagette quantities match on every imagette (float32)."""
-    n = int(ref.dimensions["number_of_wm_acq"].size)
-    assert int(new.dimensions["number_of_wm_acq"].size) == n
+    n = int(ref.sizes["number_of_wm_acq"])
+    assert int(new.sizes["number_of_wm_acq"]) == n
     for name in (
         "sig_sar",
         "sig_sar_denoised",
@@ -191,10 +191,10 @@ def test_e2e_sar_per_imagette(ref, new):
 
 def test_e2e_windspeed_bias_and_counts(ref, new):
     """Scalar wind-bias / SWh-bias / nbobs entries match exactly."""
-    for name in ref.variables:
+    for name in ref.data_vars:
         if (
             "bias" in name or "nbobs" in name or "nbptsNRCS" in name
-        ) and "number_of_wm_correction" in ref.variables[name].dimensions:
+        ) and "number_of_wm_correction" in ref[name].dims:
             a = _v(new, name)
             b = _v(ref, name)
             if not np.isfinite(b[0]):
@@ -204,7 +204,7 @@ def test_e2e_windspeed_bias_and_counts(ref, new):
 
 def test_e2e_wind_colocation(ref, new):
     """Wind colocation matches on all but a couple (antimeridian) imagettes."""
-    n = int(ref.dimensions["number_of_wm_acq"].size)
+    n = int(ref.sizes["number_of_wm_acq"])
     spd_n = _v(new, "spd_ecmwf")
     spd_r = _v(ref, "spd_ecmwf")
     bad = np.sum(np.abs(spd_n - spd_r) > 0.1)

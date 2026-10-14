@@ -6,8 +6,8 @@ import datetime as dt
 from datetime import datetime, timezone
 from pathlib import Path
 
-import netCDF4 as nc
 import numpy as np
+import xarray as xr
 
 from s1wvcalibration._legacy.ecmwf0100 import findfile, readfile
 from s1wvcalibration._legacy.ecmwf0125 import get_meteofrance_cep_0125_wind
@@ -19,22 +19,17 @@ _UTC = timezone.utc
 
 
 def _make_light_nc(path: Path) -> None:
-    ds = nc.Dataset(str(path), "w", format="NETCDF4")
-    ds.createDimension("time", 1)
-    ds.createDimension("lat", 4)
-    ds.createDimension("lon", 5)
-    t = ds.createVariable("time", "f8", ("time",))
-    t.units = "hours since 2000-01-01 00:00:00"
-    t[:] = [0.0]
-    lat = ds.createVariable("Latitude", "f8", ("lat",))
-    lat[:] = [-10.0, -5.0, 0.0, 5.0]
-    lon = ds.createVariable("Longitude", "f8", ("lon",))
-    lon[:] = [10.0, 20.0, 30.0, 40.0, 50.0]
-    u = ds.createVariable("10U", "f8", ("time", "lat", "lon"))
-    v = ds.createVariable("10V", "f8", ("time", "lat", "lon"))
-    u[0] = np.arange(20.0).reshape(4, 5)
-    v[0] = np.arange(20.0, 40.0).reshape(4, 5)
-    ds.close()
+    ds = xr.Dataset(
+        {
+            "10U": (("time", "lat", "lon"), np.arange(20.0).reshape(1, 4, 5)),
+            "10V": (("time", "lat", "lon"), np.arange(20.0, 40.0).reshape(1, 4, 5)),
+            "Latitude": (("lat",), np.array([-10.0, -5.0, 0.0, 5.0])),
+            "Longitude": (("lon",), np.array([10.0, 20.0, 30.0, 40.0, 50.0])),
+        },
+        coords={"time": (("time",), np.array([0.0]))},
+    )
+    ds["time"].attrs["units"] = "hours since 2000-01-01 00:00:00"
+    ds.to_netcdf(str(path), engine="h5netcdf")
 
 
 def test_readfile_light(tmp_path):
@@ -90,24 +85,29 @@ def test_findfile_from_timestamp(tmp_path):
 
 
 def _make_cep_nc(path: Path) -> None:
-    ds = nc.Dataset(str(path), "w", format="NETCDF4")
-    ds.latitude_resolution = 1.0
-    ds.southernmost_latitude = 0.0
-    ds.northernmost_latitude = 3.0
-    ds.longitude_resolution = 1.0
-    ds.westernmost_longitude = 0.0
-    ds.easternmost_longitude = 4.0
-    ds.createDimension("time", 1)
-    ds.createDimension("y", 4)
-    ds.createDimension("x", 5)
-    t = ds.createVariable("time", "i4", ("time",))
-    t.units = "hours since 2000-01-01 00:00:00"
-    t[:] = [100]
-    u = ds.createVariable("u10m", "f8", ("time", "y", "x"))
-    v = ds.createVariable("v10m", "f8", ("time", "y", "x"))
-    u[0] = np.ones((4, 5))
-    v[0] = np.zeros((4, 5))
-    ds.close()
+    ds = xr.Dataset(
+        {
+            "u10m": (("time", "y", "x"), np.ones((1, 4, 5))),
+            "v10m": (("time", "y", "x"), np.zeros((1, 4, 5))),
+        },
+        coords={
+            "time": (("time",), np.array([100], dtype="i4")),
+            "y": ("y", np.arange(4)),
+            "x": ("x", np.arange(5)),
+        },
+    )
+    ds["time"].attrs["units"] = "hours since 2000-01-01 00:00:00"
+    ds.attrs.update(
+        {
+            "latitude_resolution": 1.0,
+            "southernmost_latitude": 0.0,
+            "northernmost_latitude": 3.0,
+            "longitude_resolution": 1.0,
+            "westernmost_longitude": 0.0,
+            "easternmost_longitude": 4.0,
+        }
+    )
+    ds.to_netcdf(str(path), engine="h5netcdf")
 
 
 def test_get_meteofrance_cep_0125_wind(tmp_path):
@@ -135,14 +135,14 @@ def test_get_meteofrance_cep_0125_wind_control_plot(tmp_path, monkeypatch):
 def _make_cep_tree(root: str):
     d = Path(root) / "2020" / "001"
     d.mkdir(parents=True, exist_ok=True)
-    # two candidate files: one near 00:00, one near 03:00
+    # two candidate files: one near 00:00, one near 03:00. Only the filenames
+    # are used by find_colocated_ecmwf_file, so empty placeholder files suffice.
     for name in (
         "METEOFRANCE_CEP_20200101T00.nc",
         "METEOFRANCE_CEP_20200101T03.nc",
     ):
         p = d / name
-        ds = nc.Dataset(str(p), "w", format="NETCDF4")
-        ds.close()
+        p.touch()
 
 
 def test_find_colocated_ecmwf_file_found(tmp_path):

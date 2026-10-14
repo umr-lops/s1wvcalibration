@@ -5,9 +5,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import netCDF4 as nc
 import numpy as np
 import pytest
+import xarray as xr
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -37,42 +37,41 @@ def _spec(k: np.ndarray, peak_k: float = 0.2, width: float = 0.04) -> np.ndarray
     return np.tile(prof, (PHI.size, 1))
 
 
-def _make_ocn_nc(path: Path, lowfreq: bool = False) -> None:
-    ds = nc.Dataset(str(path), "w", format="NETCDF4")
-    ds.createDimension("phi", PHI.size)
-    ds.createDimension("k", K.size)
-    ds.createDimension("pol", 1)
-    ds.createDimension("acq", 1)
-    spec = ds.createVariable("oswPolSpec", "f8", ("phi", "k"))
-    spec[:] = _spec(K)
-    k = ds.createVariable("oswK", "f8", ("k",))
-    k[:] = K
-    phi = ds.createVariable("oswPhi", "f8", ("phi",))
-    phi[:] = PHI
-    # the code indexes oswAzCutoff[0][0] -> a 2D variable
-    ac = ds.createVariable("oswAzCutoff", "f8", ("pol", "acq"))
-    ac[0, 0] = 10.0  # m  -> k_cutoff = 2pi/10 ~ 0.628 (above all K -> full mask)
-    # spectral resolution is a scalar (the code tiles 2pi/res across k)
-    sr = ds.createVariable("oswSpecRes", "f8")
-    sr[:] = 0.01
-    part = ds.createVariable("oswPartitions", "i4", ("phi", "k"))
-    part[:] = 1
+def _make_ocn_nc(
+    path: Path, lowfreq: bool = False, masked_azcutoff: bool = False
+) -> None:
+    # the code indexes oswAzCutoff[0][0] -> a 2D variable. Fully masked when
+    # ``masked_azcutoff``; otherwise a single 10 m value (k_cutoff = 2pi/10,
+    # above all K -> full mask).
+    azc: np.ma.MaskedArray = np.ma.masked_all((1, 1), dtype=np.float64)
+    if not masked_azcutoff:
+        azc[0, 0] = 10.0
+    part = np.ones((PHI.size, K.size), dtype="i4")
     if lowfreq:
         part[:, :2] = -1  # two low-frequency (partition -1) bins
-    ds.close()
+    ds = xr.Dataset(
+        {
+            "oswPolSpec": (("phi", "k"), _spec(K)),
+            "oswK": (("k",), K),
+            "oswPhi": (("phi",), PHI),
+            "oswAzCutoff": (("pol", "acq"), azc),
+            # spectral resolution is a scalar (the code tiles 2pi/res across k)
+            "oswSpecRes": ((), np.float64(0.01)),
+            "oswPartitions": (("phi", "k"), part),
+        }
+    )
+    ds.to_netcdf(str(path), engine="h5netcdf")
 
 
 def _make_ww3_nc(path: Path) -> None:
-    ds = nc.Dataset(str(path), "w", format="NETCDF4")
-    ds.createDimension("phi", 36)
-    ds.createDimension("k", 24)
-    spec = ds.createVariable("polSpec", "f8", ("phi", "k"))
-    spec[:] = _spec(K, peak_k=0.2)
-    k = ds.createVariable("k", "f8", ("k",))
-    k[:] = K
-    phi = ds.createVariable("phi", "f8", ("phi",))
-    phi[:] = PHI
-    ds.close()
+    ds = xr.Dataset(
+        {
+            "polSpec": (("phi", "k"), _spec(K, peak_k=0.2)),
+            "k": (("k",), K),
+            "phi": (("phi",), PHI),
+        }
+    )
+    ds.to_netcdf(str(path), engine="h5netcdf")
 
 
 def test_low_frequency_mask_core():
@@ -85,7 +84,7 @@ def test_low_frequency_mask_core():
 def test_low_frequency_mask_from_handler(tmp_path):
     p = tmp_path / "ocn.nc"
     _make_ocn_nc(p, lowfreq=True)
-    with nc.Dataset(p) as ds:
+    with xr.open_dataset(p) as ds:
         m = get_low_frequencies_mask(ds)
     assert m.shape == (PHI.size, K.size)
     assert m[:, :2].all()
@@ -95,7 +94,7 @@ def test_low_frequency_mask_from_handler(tmp_path):
 def test_2d_cutoff_returns_mask_and_grid(tmp_path):
     p = tmp_path / "ocn.nc"
     _make_ocn_nc(p)
-    with nc.Dataset(p) as ds:
+    with xr.open_dataset(p) as ds:
         mask_eff, k_sar, phi_sar = get_WV_2D_cutoff(ds, lowfreqfilter=True)
     assert mask_eff.shape == (PHI.size, K.size)
     np.testing.assert_array_equal(k_sar, K)
@@ -121,7 +120,7 @@ def test_interp_polar_spectrum_bad_shape():
 def test_s1_hs_eff_2d_cutoff(tmp_path):
     p = tmp_path / "ocn.nc"
     _make_ocn_nc(p)
-    with nc.Dataset(p) as ds:
+    with xr.open_dataset(p) as ds:
         swh_eff, swh_azc, wl, _dirp, _wl_eff, _dirp_eff = get_S1_hs_eff_2D_cutoff(ds)
     assert np.isfinite(swh_eff)
     assert np.isfinite(swh_azc)
@@ -134,10 +133,8 @@ def test_s1_hs_eff_2d_cutoff(tmp_path):
 def test_s1_hs_eff_2d_masked_azcutoff(tmp_path):
     # masked azimuth cutoff -> all NaN (corrupted-file branch)
     p = tmp_path / "ocn.nc"
-    _make_ocn_nc(p)
-    with nc.Dataset(p, "a") as ds:
-        ds.variables["oswAzCutoff"][:] = np.ma.masked
-    with nc.Dataset(p) as ds:
+    _make_ocn_nc(p, masked_azcutoff=True)
+    with xr.open_dataset(p) as ds:
         res = get_S1_hs_eff_2D_cutoff(ds)
     assert all(np.isnan(r) for r in res)
 
@@ -147,7 +144,7 @@ def test_ww3_hs_eff_2d_cutoff(tmp_path):
     p_ww3 = tmp_path / "ww3.nc"
     _make_ocn_nc(p_s1)
     _make_ww3_nc(p_ww3)
-    with nc.Dataset(p_s1) as ds_s1, nc.Dataset(p_ww3) as ds_ww3:
+    with xr.open_dataset(p_s1) as ds_s1, xr.open_dataset(p_ww3) as ds_ww3:
         (
             swh_eff_ww3,
             swh_ww3,

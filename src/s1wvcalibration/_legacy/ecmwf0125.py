@@ -8,10 +8,10 @@ from __future__ import annotations
 import datetime as dt
 import logging
 
+import cftime
 import matplotlib.pyplot as plt
-import netCDF4
 import numpy as np
-from netCDF4 import Dataset
+import xarray as xr
 
 logger = logging.getLogger(__name__)
 
@@ -26,15 +26,15 @@ def get_meteofrance_cep_0125_wind(
     The output dict contains ``lat``, ``lon``, ``zon``, ``mer``, ``speed`` and
     ``time``.
     """
-    data = Dataset(file)
+    data = xr.open_dataset(file, decode_times=False)
 
     # reverse latitudes so they go from south to north
-    reslat = float(data.latitude_resolution)
-    latmin = float(data.southernmost_latitude)
-    latmax = float(data.northernmost_latitude)
-    reslon = float(data.longitude_resolution)
-    lonmin = float(data.westernmost_longitude)
-    lonmax = float(data.easternmost_longitude)
+    reslat = float(data.attrs["latitude_resolution"])
+    latmin = float(data.attrs["southernmost_latitude"])
+    latmax = float(data.attrs["northernmost_latitude"])
+    reslon = float(data.attrs["longitude_resolution"])
+    lonmin = float(data.attrs["westernmost_longitude"])
+    lonmax = float(data.attrs["easternmost_longitude"])
     latitudes = (np.arange(latmin, latmax + reslat, reslat))[::-1]
     longitudes = np.arange(lonmin, lonmax + reslon, reslon)
 
@@ -48,8 +48,8 @@ def get_meteofrance_cep_0125_wind(
         )
 
     # 10-m wind data
-    uin = (data.variables["u10m"][:].squeeze())[::-1, :]
-    vin = (data.variables["v10m"][:].squeeze())[::-1, :]
+    uin = data["u10m"].values.squeeze()[::-1, :]
+    vin = data["v10m"].values.squeeze()[::-1, :]
     sin = np.sqrt(np.power(uin, 2) + np.power(vin, 2))
 
     lon, lat = np.meshgrid(longitudes, latitudes)
@@ -62,9 +62,8 @@ def get_meteofrance_cep_0125_wind(
         "speed": sin,
     }
 
-    _times = netCDF4.num2date(
-        data.variables["time"][:], data.variables["time"].getncattr("units")
-    )
+    # cftime.num2date mirrors the legacy ``netCDF4.num2date``.
+    _times = cftime.num2date(data["time"].values, data["time"].attrs["units"])
     gregtime = _times[0] if isinstance(_times, np.ndarray) else _times
     wind["time"] = dt.datetime(
         gregtime.year,

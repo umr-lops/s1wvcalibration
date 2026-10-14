@@ -30,7 +30,6 @@ import matplotlib as mpl
 
 mpl.use("Agg")
 import matplotlib.pyplot as plt
-import netCDF4
 import numpy as np
 import xarray as xr
 from scipy import stats
@@ -367,27 +366,27 @@ class WVcalibrator:
                         )
                         if Path(ww3file).exists():
                             cpt_counter["ww3file_found"] += 1
-                            nc_ww3 = netCDF4.Dataset(ww3file)
-                            nc_sar = netCDF4.Dataset(in_file_meas)
-                            (
-                                hsww3_2D,
-                                _hsww3_1D,
-                                _ww3wavelengthpeak,
-                                _ww3wavelengthpeak_eff,
-                                _ww3directionpeak,
-                                _ww3directionpeak_eff,
-                                _ww3wl_partSAR1_weighted,
-                            ) = get_ww3_hs_eff_2D_cutoff(nc_sar, nc_ww3)
-                            (
-                                hscutoff2d,
-                                _hscutoff1d,
-                                _ocnwavelengthpeak,
-                                _ocndirectionpeak,
-                                _ocnwavelengthpeak_eff,
-                                _ocndirectionpeak_eff,
-                            ) = get_S1_hs_eff_2D_cutoff(nc_sar)
-                            nc_sar.close()
-                            nc_ww3.close()
+                            ds_ww3 = xr.open_dataset(ww3file, decode_times=False)
+                            try:
+                                (
+                                    hsww3_2D,
+                                    _hsww3_1D,
+                                    _ww3wavelengthpeak,
+                                    _ww3wavelengthpeak_eff,
+                                    _ww3directionpeak,
+                                    _ww3directionpeak_eff,
+                                    _ww3wl_partSAR1_weighted,
+                                ) = get_ww3_hs_eff_2D_cutoff(dsocn, ds_ww3)
+                                (
+                                    hscutoff2d,
+                                    _hscutoff1d,
+                                    _ocnwavelengthpeak,
+                                    _ocndirectionpeak,
+                                    _ocnwavelengthpeak_eff,
+                                    _ocndirectionpeak_eff,
+                                ) = get_S1_hs_eff_2D_cutoff(dsocn)
+                            finally:
+                                ds_ww3.close()
                             _hseff2d_sar[ii] = hscutoff2d
                             _hseff2d_ww3[ii] = hsww3_2D
                         else:
@@ -1121,7 +1120,7 @@ class WVcalibrator:
         ds.attrs["producer"] = "CERSAT"
         ds.attrs["project"] = "MPC-sentinel1"
         ds.attrs["time_unit"] = _time_unit()
-        ds.to_netcdf(finalpath, engine="netcdf4")
+        ds.to_netcdf(finalpath, engine="h5netcdf")
         logger.info("NetCDF file successfully written to %s", finalpath)
         try:
             finalpath.chmod(0o0775)

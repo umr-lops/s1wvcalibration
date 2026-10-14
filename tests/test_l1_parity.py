@@ -27,9 +27,9 @@ import os
 from pathlib import Path
 from typing import cast
 
-import netCDF4
 import numpy as np
 import pytest
+import xarray as xr
 
 from s1wvcalibration._legacy.xsar_reader import read_slc_imagette
 from s1wvcalibration.config import data_path
@@ -76,7 +76,7 @@ def _data_available() -> bool:
 def reference():
     if not _data_available():
         pytest.skip(f"L1 data not available (safe={_safe_path()}, ref={_ref_nc()})")
-    return netCDF4.Dataset(_ref_nc())
+    return xr.open_dataset(_ref_nc())
 
 
 @pytest.fixture(scope="module")

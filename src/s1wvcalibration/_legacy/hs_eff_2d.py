@@ -27,7 +27,7 @@ def get_S1_hs_eff_2D_cutoff(
     """S-1 effective Hs using the 2D ellipsoid cutoff.
 
     Args:
-        file_handler: netCDF4 dataset of a S-1 L2 OCN WV product.
+        file_handler: xarray Dataset of a S-1 L2 OCN WV product.
         lowfreqfilter: remove the low-frequency (partition -1) bins.
         plot_dev: kept for signature compatibility.
 
@@ -36,14 +36,14 @@ def get_S1_hs_eff_2D_cutoff(
         wavelength_peak_eff, direction_peak_eff)``.
     """
     logger.debug("lowfreqfilter %s", lowfreqfilter)
-    s1a_spec = file_handler.variables["oswPolSpec"][:].squeeze()
-    k_sar = file_handler.variables["oswK"][:]
+    s1a_spec = np.asarray(file_handler["oswPolSpec"].values).squeeze()
+    k_sar = np.asarray(file_handler["oswK"].values)
     toto_ksar = copy.copy(k_sar)
     logger.debug("k_sar shape: %s", k_sar.shape)
-    az_cutoff = file_handler.variables["oswAzCutoff"][0][0]
-    if isinstance(az_cutoff, np.ma.core.MaskedConstant) or isinstance(
-        s1a_spec, np.float64
-    ):
+    # A fully masked oswAzCutoff decodes to NaN (the legacy netCDF4 handler
+    # surfaced it as a MaskedConstant); a scalar (corrupt) spectrum has ndim 0.
+    az_cutoff = np.asarray(file_handler["oswAzCutoff"].values)[0, 0]
+    if np.isnan(az_cutoff) or s1a_spec.ndim == 0:
         logger.debug("AzCutOf is masked")
         return (np.nan, np.nan, np.nan, np.nan, np.nan, np.nan)
 
@@ -70,19 +70,17 @@ def get_S1_hs_eff_2D_cutoff(
     swh_eff_2d_s1 = 4 * np.sqrt(np.sum(s1a_spec * kdkdphi_sar * mask_eff))
     logger.debug("np.nanmax(spk_ocn) = %s", np.nanmax(spk_ocn))
 
+    # A NaN wavenumber (masked bin in the legacy handler) makes the quotient
+    # NaN, which is the same value the legacy code assigned explicitly.
     if not np.isnan(np.max(spk_ocn)):
         _ind = np.where(spk_ocn == np.max(spk_ocn))[0][0]
         ocnwavelengthpeak = 2 * np.pi / toto_ksar[_ind]
-        if isinstance(ocnwavelengthpeak, np.ma.core.MaskedConstant):
-            ocnwavelengthpeak = np.nan
     else:
         ocnwavelengthpeak = np.nan
 
     if not np.isnan(np.nanmax(spp_ocn)):
         _ind = np.where(spp_ocn == np.max(spp_ocn))[0][0]
         ocndirectionpeak = phi_sar[_ind]
-        if isinstance(ocndirectionpeak, np.ma.core.MaskedConstant):
-            ocndirectionpeak = np.nan
     else:
         ocndirectionpeak = np.nan
 
@@ -121,14 +119,15 @@ def get_ww3_hs_eff_2D_cutoff(
         ``(swh_eff_2d_ww3, swh_ww3, ww3_wavelength_peak, ww3_wavelength_peak_eff,
         ww3_direction_peak, ww3_direction_peak_eff, ww3_wl_partSAR1_weighted)``.
     """
-    k_eff = 2 * np.pi / file_handler_s1.variables["oswSpecRes"][:].squeeze()
-    k_sar = file_handler_s1.variables["oswK"][:]
-    phi_sar = np.array(file_handler_s1.variables["oswPhi"][:].squeeze())
-    k_cutoff = 2 * np.pi / file_handler_s1.variables["oswAzCutoff"][0][0]
-    s1a_spec = file_handler_s1.variables["oswPolSpec"][:].squeeze()
-    partoch = file_handler_s1.variables["oswPartitions"][:].squeeze()
+    k_eff = 2 * np.pi / np.asarray(file_handler_s1["oswSpecRes"].values).squeeze()
+    k_sar = np.asarray(file_handler_s1["oswK"].values)
+    phi_sar = np.asarray(file_handler_s1["oswPhi"].values).squeeze()
+    k_cutoff = 2 * np.pi / np.asarray(file_handler_s1["oswAzCutoff"].values)[0, 0]
+    s1a_spec = np.asarray(file_handler_s1["oswPolSpec"].values).squeeze()
+    partoch = np.asarray(file_handler_s1["oswPartitions"].values).squeeze()
 
-    if isinstance(k_cutoff, np.ma.core.MaskedConstant):
+    # A fully masked oswAzCutoff decodes to NaN (legacy: MaskedConstant).
+    if bool(np.isnan(k_cutoff)):
         return (np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan)
 
     mask = s1a_spec * 0.0
@@ -136,9 +135,9 @@ def get_ww3_hs_eff_2D_cutoff(
     k_sar_2D = np.array(np.tile(toto_ksar, (phi_sar.size, 1)))
     mask[k_sar_2D < k_cutoff] = 1
 
-    ww3_spec = file_handler_ww3.variables["polSpec"][:]
-    k_ww3 = file_handler_ww3.variables["k"][:]
-    phi_ww3 = file_handler_ww3.variables["phi"][:]
+    ww3_spec = np.asarray(file_handler_ww3["polSpec"].values)
+    k_ww3 = np.asarray(file_handler_ww3["k"].values)
+    phi_ww3 = np.asarray(file_handler_ww3["phi"].values)
     ww3_spec_interp = interp_polar_spectrum(
         toto_ksar, phi_sar, ww3_spec, k_ww3, phi_ww3
     )

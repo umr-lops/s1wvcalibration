@@ -34,12 +34,14 @@ dynamic = ["version"]
 # best installed from conda-forge (micromamba) where GDAL is prebuilt, e.g.:
 #   micromamba create -n s1wvcalib -c conda-forge python=3.12 xsar xsarsea
 # pip install of the package itself then works with --no-deps for those two.
+# All NetCDF I/O goes through xarray (with the h5netcdf engine); the netCDF4
+# library is no longer a direct dependency.
 dependencies = [
   "numpy",
   "scipy",
   "matplotlib",
   "xarray",
-  "netCDF4",
+  "cftime",
   "h5netcdf",
   "pyyaml",
   "xsar",
