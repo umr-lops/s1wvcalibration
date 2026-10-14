@@ -72,10 +72,7 @@ def _make_ocn_meas(path: Path, inc: float, lon: float, lat: float, nrcs_db: floa
         "oswWindDirection": 180.0,
     }
     ds = xr.Dataset(
-        {
-            name: (("a", "b"), np.full((1, 1), val))
-            for name, val in scalar2d.items()
-        }
+        {name: (("a", "b"), np.full((1, 1), val)) for name, val in scalar2d.items()}
         | {
             "oswPolSpec": (("phi", "k"), _spec(K)),
             "oswK": (("k",), K),
@@ -84,7 +81,12 @@ def _make_ocn_meas(path: Path, inc: float, lon: float, lat: float, nrcs_db: floa
             "oswSpecRes": ((), 0.01),
             "oswPartitions": (("phi", "k"), np.ones((PHI.size, K.size), dtype="i4")),
         },
-        coords={"a": ("a", [0]), "b": ("b", [0]), "pol": ("pol", [0]), "acq": ("acq", [0])},
+        coords={
+            "a": ("a", [0]),
+            "b": ("b", [0]),
+            "pol": ("pol", [0]),
+            "acq": ("acq", [0]),
+        },
     )
     ds.to_netcdf(str(path), engine="h5netcdf")
 

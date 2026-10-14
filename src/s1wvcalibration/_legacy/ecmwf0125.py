@@ -63,9 +63,7 @@ def get_meteofrance_cep_0125_wind(
     }
 
     # cftime.num2date mirrors the legacy ``netCDF4.num2date``.
-    _times = cftime.num2date(
-        data["time"].values, data["time"].attrs["units"]
-    )
+    _times = cftime.num2date(data["time"].values, data["time"].attrs["units"])
     gregtime = _times[0] if isinstance(_times, np.ndarray) else _times
     wind["time"] = dt.datetime(
         gregtime.year,
