@@ -38,7 +38,7 @@ From: continuumio/miniconda3:4.12.0
         -c conda-forge \
         -n s1wvcalibration \
         python=3.12 pip gdal dask xarray numpy scipy matplotlib \
-        netcdf4 h5netcdf h5py pyyaml
+        cftime h5netcdf h5py pyyaml
 
     conda run -n s1wvcalibration pip install --no-cache-dir "xsar[s1]" xsarsea
 

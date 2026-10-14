@@ -12,8 +12,9 @@ import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
-import netCDF4 as nc
+import cftime
 import numpy as np
+import xarray as xr
 
 from s1wvcalibration.config import data_path
 
@@ -30,15 +31,17 @@ _UTC = timezone.utc
 
 def readfile(fname: str) -> dict:
     """Read the light netCDF (U and V only) into a dict of 2D arrays."""
-    data = nc.Dataset(fname)
+    data = xr.open_dataset(fname, decode_times=False)
     ecmwf_data: dict = {}
-    ecmwf_data["lat"] = data.variables["Latitude"][::].squeeze()
-    ecmwf_data["lon"] = data.variables["Longitude"][::].squeeze()
-    ecmwf_data["time"] = nc.num2date(
-        data.variables["time"][:], data.variables["time"].units
+    ecmwf_data["lat"] = data["Latitude"].values.squeeze()
+    ecmwf_data["lon"] = data["Longitude"].values.squeeze()
+    # cftime.num2date mirrors the legacy ``netCDF4.num2date``: it returns
+    # datetime objects (cftime for non-standard calendars) with ``.year`` etc.
+    ecmwf_data["time"] = cftime.num2date(
+        data["time"].values, data["time"].attrs["units"]
     )
-    ecmwf_data["uwind"] = data.variables["10U"][::].squeeze()
-    ecmwf_data["vwind"] = data.variables["10V"][::].squeeze()
+    ecmwf_data["uwind"] = data["10U"].values.squeeze()
+    ecmwf_data["vwind"] = data["10V"].values.squeeze()
     ecmwf_data["zon"] = ecmwf_data["uwind"]
     ecmwf_data["mer"] = ecmwf_data["vwind"]
     ecmwf_data["speed"] = np.sqrt(ecmwf_data["uwind"] ** 2 + ecmwf_data["vwind"] ** 2)
@@ -47,17 +50,17 @@ def readfile(fname: str) -> dict:
 
 def read_full_file(fname: str) -> dict:
     """Read the full netCDF (U, V and MSL) into a dict of 2D arrays."""
-    data = nc.Dataset(fname)
+    data = xr.open_dataset(fname, decode_times=False)
     ecmwf_data: dict = {}
-    ecmwf_data["lat"] = data.variables["lat"][::].squeeze()
-    ecmwf_data["lon"] = data.variables["lon"][::].squeeze()
+    ecmwf_data["lat"] = data["lat"].values.squeeze()
+    ecmwf_data["lon"] = data["lon"].values.squeeze()
     _time = dt.datetime.strptime(
         Path(fname).name.split("_")[3].replace(".nc", ""), "%Y%m%d%H%M"
     ).replace(tzinfo=_UTC)
     ecmwf_data["time"] = _time
-    ecmwf_data["uwind"] = data.variables["10u"][::].squeeze()
-    ecmwf_data["vwind"] = data.variables["10v"][::].squeeze()
-    ecmwf_data["msl"] = data.variables["msl"][::].squeeze()
+    ecmwf_data["uwind"] = data["10u"].values.squeeze()
+    ecmwf_data["vwind"] = data["10v"].values.squeeze()
+    ecmwf_data["msl"] = data["msl"].values.squeeze()
     return ecmwf_data
 
 

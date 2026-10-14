@@ -49,7 +49,7 @@ This replaces the legacy `shared_information` module.
 | [xsar](https://pypi.org/project/xsar/)       | Sentinel-1 Level-1 SLC reader                  |
 | [xsarsea](https://pypi.org/project/xsarsea/) | GMF (cmod5n / cmod5 / cmodifremer) NRCS models |
 | numpy, scipy                                 | numerical core                                 |
-| xarray, netCDF4, h5netcdf                    | NetCDF I/O                                     |
+| xarray, cftime, h5netcdf                     | NetCDF I/O (all NetCDF reads/writes via xarray)|
 
 ## Installation
 

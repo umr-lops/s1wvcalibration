@@ -8,8 +8,9 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
+
 if TYPE_CHECKING:
-    import numpy as np
     from numpy.typing import NDArray
 
 logger = logging.getLogger(__name__)
@@ -23,8 +24,8 @@ def get_low_frequencies_mask_core(partitions: NDArray) -> NDArray[np.bool_]:
 
 
 def get_low_frequencies_mask(handler: Any) -> NDArray[np.bool_]:
-    """Return the 2D (phi, k) low-frequency mask from a netCDF handler."""
-    partitions = handler.variables["oswPartitions"][:].squeeze()
+    """Return the 2D (phi, k) low-frequency mask from an xarray Dataset."""
+    partitions = np.asarray(handler["oswPartitions"].values).squeeze()
     mat_low = get_low_frequencies_mask_core(partitions)
     logger.debug("any low-frequency bins: %s", bool(mat_low.any()))
     return mat_low

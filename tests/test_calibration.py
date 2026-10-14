@@ -12,7 +12,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-import netCDF4 as nc
 import numpy as np
 import pytest
 import xarray as xr
@@ -61,13 +60,6 @@ def _spec(k: np.ndarray, peak_k: float = 0.2, width: float = 0.04) -> np.ndarray
 
 
 def _make_ocn_meas(path: Path, inc: float, lon: float, lat: float, nrcs_db: float):
-    ds = nc.Dataset(str(path), "w", format="NETCDF4")
-    ds.createDimension("a", 1)
-    ds.createDimension("b", 1)
-    ds.createDimension("phi", PHI.size)
-    ds.createDimension("k", K.size)
-    ds.createDimension("pol", 1)
-    ds.createDimension("acq", 1)
     scalar2d = {
         "oswLon": lon,
         "oswLat": lat,
@@ -79,56 +71,65 @@ def _make_ocn_meas(path: Path, inc: float, lon: float, lat: float, nrcs_db: floa
         "oswWindSpeed": _WIND,
         "oswWindDirection": 180.0,
     }
-    for name, val in scalar2d.items():
-        v = ds.createVariable(name, "f8", ("a", "b"))
-        v[0, 0] = val
-    # spectral variables (for the 2D-cutoff SWH branch)
-    ds.createVariable("oswPolSpec", "f8", ("phi", "k"))[:] = _spec(K)
-    ds.createVariable("oswK", "f8", ("k",))[:] = K
-    ds.createVariable("oswPhi", "f8", ("phi",))[:] = PHI
-    ds.createVariable("oswAzCutoff", "f8", ("pol", "acq"))[0, 0] = 10.0
-    ds.createVariable("oswSpecRes", "f8")[:] = 0.01
-    ds.createVariable("oswPartitions", "i4", ("phi", "k"))[:] = 1
-    ds.close()
+    ds = xr.Dataset(
+        {
+            name: (("a", "b"), np.full((1, 1), val))
+            for name, val in scalar2d.items()
+        }
+        | {
+            "oswPolSpec": (("phi", "k"), _spec(K)),
+            "oswK": (("k",), K),
+            "oswPhi": (("phi",), PHI),
+            "oswAzCutoff": (("pol", "acq"), np.full((1, 1), 10.0)),
+            "oswSpecRes": ((), 0.01),
+            "oswPartitions": (("phi", "k"), np.ones((PHI.size, K.size), dtype="i4")),
+        },
+        coords={"a": ("a", [0]), "b": ("b", [0]), "pol": ("pol", [0]), "acq": ("acq", [0])},
+    )
+    ds.to_netcdf(str(path), engine="h5netcdf")
 
 
 def _make_ww3(path: Path):
-    ds = nc.Dataset(str(path), "w", format="NETCDF4")
-    ds.createDimension("phi", PHI.size)
-    ds.createDimension("k", K.size)
-    ds.createVariable("polSpec", "f8", ("phi", "k"))[:] = _spec(K)
-    ds.createVariable("k", "f8", ("k",))[:] = K
-    ds.createVariable("phi", "f8", ("phi",))[:] = PHI
-    ds.close()
+    ds = xr.Dataset(
+        {
+            "polSpec": (("phi", "k"), _spec(K)),
+        },
+        coords={"k": ("k", K), "phi": ("phi", PHI)},
+    )
+    ds.to_netcdf(str(path), engine="h5netcdf")
 
 
 def _make_ecmwf_light(path: Path, lat: float, lon: float):
     """A single-grid-point 0.100 light file with a uniform _WIND east wind."""
-    ds = nc.Dataset(str(path), "w", format="NETCDF4")
-    ds.createDimension("time", 1)
-    ds.createDimension("lat", 1)
-    ds.createDimension("lon", 1)
-    t = ds.createVariable("time", "f8", ("time",))
-    t.units = "hours since 2000-01-01 00:00:00"
-    t[:] = [0.0]
-    ds.createVariable("Latitude", "f8", ("lat",))[:] = [lat]
-    ds.createVariable("Longitude", "f8", ("lon",))[:] = [lon]
-    u = ds.createVariable("10U", "f8", ("time", "lat", "lon"))
-    v = ds.createVariable("10V", "f8", ("time", "lat", "lon"))
-    u[0] = [[_WIND]]
-    v[0] = [[0.0]]
-    ds.close()
+    ds = xr.Dataset(
+        {
+            "10U": (("time", "lat", "lon"), np.array([[[_WIND]]])),
+            "10V": (("time", "lat", "lon"), np.array([[[0.0]]])),
+            "Latitude": (("lat",), np.array([lat])),
+            "Longitude": (("lon",), np.array([lon])),
+        },
+        coords={
+            "time": (("time",), np.array([0.0])),
+            "lat": ("lat", np.array([lat])),
+            "lon": ("lon", np.array([lon])),
+        },
+    )
+    ds["time"].attrs["units"] = "hours since 2000-01-01 00:00:00"
+    ds.to_netcdf(str(path), engine="h5netcdf")
 
 
 def _make_land_mask(path: Path, all_ocean: bool = True):
     flag = 0.0 if all_ocean else 1.0
-    ds = nc.Dataset(str(path), "w", format="NETCDF4")
-    ds.createDimension("latitude", 2)
-    ds.createDimension("longitude", 2)
-    ds.createVariable("latitude", "f8", ("latitude",))[:] = [15.0, 25.0]
-    ds.createVariable("longitude", "f8", ("longitude",))[:] = [5.0, 15.0]
-    ds.createVariable("quality_flag", "f8", ("latitude", "longitude"))[:] = flag
-    ds.close()
+    ds = xr.Dataset(
+        {
+            "quality_flag": (("latitude", "longitude"), np.full((2, 2), flag)),
+        },
+        coords={
+            "latitude": ("latitude", np.array([15.0, 25.0])),
+            "longitude": ("longitude", np.array([5.0, 15.0])),
+        },
+    )
+    ds.to_netcdf(str(path), engine="h5netcdf")
 
 
 @pytest.fixture
@@ -229,7 +230,7 @@ def test_analyse_one_safe_l2(l2_safe):
     calib_dir = _calib_dir(out)
     nc_path = calib_dir / (SAFE + ".nc")
     assert nc_path.exists()
-    with nc.Dataset(nc_path) as ds:
+    with xr.open_dataset(nc_path) as ds:
         assert "sig_sar" in ds.variables
         assert "correction_wv1_cmod5n" in ds.variables
         assert "correction_wv2_cmod5n" in ds.variables

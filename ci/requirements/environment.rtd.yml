@@ -16,7 +16,7 @@ dependencies:
   - numpy
   - scipy
   - matplotlib
-  - netcdf4
+  - cftime
   - h5netcdf
   - h5py
   - pyyaml
