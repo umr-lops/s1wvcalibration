@@ -1193,7 +1193,8 @@ def PlotNRCSvsWindPerSafe(
     )
 
     plt.xlabel("Wind Speed ECMWF [m/s]")
-    plt.ylabel(pol + " NRCS [dB]")
+    # S-1 WV is co-polarized: single-char "V"/"H" -> full "VV"/"HH" in the label.
+    plt.ylabel(pol + pol + " NRCS [dB]")
     plt.title(
         satellite + " - " + str(date_sar1) + " - " + str(date_sar2) + " " + gmf_name
     )

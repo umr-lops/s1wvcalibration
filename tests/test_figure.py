@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import matplotlib as mpl
+
+mpl.use("Agg")
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import xarray as xr
 
+from s1wvcalibration.calibration import PlotNRCSvsWindPerSafe
 from s1wvcalibration.figure import (
     _pol_str,
     make_nrcs_vs_wind_figure,
@@ -104,3 +109,33 @@ def test_pol_str_variants():
     assert _pol_str(b"V") == "V"
     assert _pol_str("H") == "H"
     assert _pol_str(np.bytes_(b"V")) == "V"
+
+
+@pytest.mark.parametrize(
+    ("pol", "expected"), [("V", "VV NRCS [dB]"), ("H", "HH NRCS [dB]")]
+)
+def test_ylabel_is_full_copolarisation(tmp_path, pol, expected):
+    # Regression for issue #19: the y-axis must show the full co-polarisation
+    # (VV/HH), not the single char parsed from the SAFE name ("V"/"H").
+    n = 4
+    inc = np.array([18.0, 25.0, 32.0, 40.0])
+    spd = np.array([4.0, 6.0, 8.0, 12.0])
+    sig = np.full(n, 0.04)
+    gmf = np.full(n, 0.04)
+    _, fig = PlotNRCSvsWindPerSafe(
+        spd,
+        inc < 30,
+        inc > 30,
+        -0.1,
+        -0.2,
+        SAFE,
+        gmf,
+        sig,
+        tmp_path,
+        pol,
+        gmf_name="cmod5n",
+    )
+    try:
+        assert fig.axes[0].yaxis.get_label().get_text() == expected
+    finally:
+        plt.close(fig)
