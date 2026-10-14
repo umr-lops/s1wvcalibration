@@ -69,8 +69,7 @@ def test_replot_writes_three_figures(tmp_path):
     assert all(stem in w.name and ".nc" not in w.name for w in written)
     # one figure per GMF
     assert {
-        g for g in ("cmod5", "cmod-ifr2", "cmod5n")
-        if any(g in w.name for w in written)
+        g for g in ("cmod5", "cmod-ifr2", "cmod5n") if any(g in w.name for w in written)
     } == {"cmod5", "cmod-ifr2", "cmod5n"}
 
 
