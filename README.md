@@ -78,6 +78,22 @@ usage: s1wvcalib [-h] [-o OUTPUT] -i INPUT [--maxlat MAXLAT]
 Per-SAFE NetCDF calibration files are written under the configured
 `analysis_dir` (see `config.yaml`).
 
+### Regenerating the figures from a calibration NetCDF
+
+The NRCS-vs-wind-speed figures (one per GMF: cmod5, cmod-ifr2, cmod5n) are
+written next to the NetCDF by `s1wvcalib`. To re-issue them without re-running
+the (expensive) calibration, use `s1wvfig` on an existing per-SAFE NetCDF:
+
+```bash
+s1wvfig \
+  --input-nc /path/to/calib/S1A_WV_SLC__1SSV_...SAFE.nc \
+  --output /path/to/figures
+```
+
+It reads the per-imagette wind / incidence / backscatter stored in the NetCDF,
+recomputes the model backscatter (including the H-polarisation ratio), and
+writes the same `wind_vs_sig_calibrated_<gmf>_<safe>.png` files.
+
 ## Configuration
 
 The packaged `config.yaml` holds the `root_directory` (under which all the
@@ -100,7 +116,8 @@ s1wvcalibration/
 ├── src/
 │   └── s1wvcalibration/
 │       ├── __init__.py        # Package entry point, exposes __version__
-│       ├── calibration.py     # Core calibration engine + CLI entry point
+│       ├── calibration.py     # Core calibration engine + `s1wvcalib` CLI
+│       ├── figure.py          # Re-plot figures from a NetCDF + `s1wvfig` CLI
 │       ├── config.py          # config.yaml loading (replaces shared_information)
 │       ├── config.yaml        # Default paths & calibration constants
 │       └── _legacy/           # Modules ported from mpcsentinellibs
@@ -108,6 +125,7 @@ s1wvcalibration/
 ├── tests/
 │   ├── test_package.py        # Package metadata tests
 │   ├── test_gmf_parity.py     # GMF / azimuth parity vs the legacy code
+│   ├── test_figure.py         # Figure replot entrypoint (s1wvfig)
 │   ├── test_l1_parity.py      # L1 reader parity vs a production NetCDF
 │   └── test_netcdf_parity.py  # End-to-end NetCDF parity
 ├── docs/                      # Sphinx documentation
