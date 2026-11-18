@@ -17,6 +17,9 @@ Measured results (grid: v 1-25 m/s, phi 0-180 deg, inc 15-45 deg):
 * ``cmod_ifr2`` (xsarsea, float64) vs the legacy ``cmod_ifremer.cmod_ifr2``
   (float32 coefficients): ~2e-6 dB, i.e. float32 rounding only.
 * ``compute_azimuth_angle`` vs the legacy source: **exact** (0.0).
+* ``cmod5`` vs the legacy ``sar.utils.gmf.cmod5`` (default ``neutral=True``,
+  i.e. CMOD5.N coefficients; path override ``S1WVCALIB_LEGACY_SAR_GMF``):
+  < 1e-5 dB.
 """
 
 from __future__ import annotations
@@ -25,17 +28,21 @@ import importlib.util
 import logging
 import os
 import sys
+import warnings
 from pathlib import Path
 
 import numpy as np
 import pytest
 
 from s1wvcalibration._legacy.compute_wind_azimuth import compute_azimuth_angle
-from s1wvcalibration._legacy.gmf import cmod5n_forward, cmod5n_xsarsea, cmod_ifr2
+from s1wvcalibration._legacy.gmf import cmod5, cmod5n_forward, cmod5n_xsarsea, cmod_ifr2
 
 _DEFAULT_LEGACY = (
     "/scratch/agrouaze/opencode_sandbox/calvalsentinel1/"
     "mpc-sentinel/mpcsentinellibs/qualitycheck"
+)
+_DEFAULT_LEGACY_SAR_GMF = (
+    "/scale/project/lops-siam-airflow/src_exploit/sar/sar/utils/gmf.py"
 )
 
 logging.getLogger().setLevel(logging.WARNING)
@@ -51,7 +58,11 @@ def _load(name: str, filename: str):
     assert spec is not None
     assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    # Legacy sources contain invalid escape sequences in docstrings
+    # (SyntaxWarning on py>=3.12, an error under the suite's -W error).
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", SyntaxWarning)
+        spec.loader.exec_module(module)
     return module
 
 
@@ -74,6 +85,21 @@ def legacy_cmod_ifremer():
     if not path.exists():
         pytest.skip(f"legacy source not available: {path}")
     return _load("legacy_cmod_ifremer", "cmod_ifremer.py")
+
+
+@pytest.fixture(scope="module")
+def legacy_sar_gmf():
+    path = Path(os.environ.get("S1WVCALIB_LEGACY_SAR_GMF", _DEFAULT_LEGACY_SAR_GMF))
+    if not path.exists():
+        pytest.skip(f"legacy source not available: {path}")
+    spec = importlib.util.spec_from_file_location("legacy_sar_gmf", path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", SyntaxWarning)
+        spec.loader.exec_module(module)
+    return module
 
 
 @pytest.fixture(scope="module")
@@ -154,3 +180,17 @@ def test_wind_azimuth_is_exact(legacy_wind_azimuth):
     new = compute_azimuth_angle(tr, uuu, mermer)
     legacy = legacy_wind_azimuth.compute_azimuth_angle(tr, uuu, mermer)
     assert np.max(np.abs(new - legacy)) == 0.0
+
+
+def test_cmod5_is_cmod5n_elementwise(wv_grid):
+    """The legacy "cmod5" name maps to the standard (element-wise) CMOD5.N."""
+    v, phi, theta = wv_grid
+    np.testing.assert_array_equal(cmod5(v, phi, theta), cmod5n_xsarsea(v, phi, theta))
+
+
+def test_cmod5_matches_legacy_sar_gmf(legacy_sar_gmf, wv_grid):
+    """Parity with ``sar.utils.gmf.cmod5`` as called by the legacy production."""
+    v, phi, theta = wv_grid
+    new = cmod5(v.ravel(), phi.ravel(), theta.ravel())
+    legacy = legacy_sar_gmf.cmod5(v.ravel(), phi.ravel(), theta.ravel())
+    assert np.max(np.abs(_db(new) - _db(legacy))) < 1e-5

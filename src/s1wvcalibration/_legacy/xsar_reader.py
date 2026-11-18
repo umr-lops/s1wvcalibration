@@ -19,6 +19,11 @@ calibration-relevant quantity:
 * ``doppler_centroid``   = mean over the image of the Doppler-Centroid estimate
   (``frequency``) spline-interpolated over (azimuth, slant-range), exactly as
   ``cerbere.SAFEGeoTiffFile.read_values('doppler_centroid')`` does.
+* ``doppler_centroid_quality`` = annotation
+  ``qualityInformation/qualityDataList/qualityData/dopplerCentroidQuality/
+  dopplerCentroidUncertainFlag`` (1 if ``true``), as read by cerbere
+  ``_fill_dopplercentroidqualityflag``. Not to be confused with
+  ``dopplerCentroid/.../dataDcRmsErrorAboveThreshold``, a different flag.
 
 Notes
 -----
@@ -34,6 +39,7 @@ from __future__ import annotations
 
 import logging
 import re
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 
@@ -77,8 +83,34 @@ def _open_calibrated(measu_path: str) -> tuple[Any, Any]:
     return meta, sar
 
 
-def _doppler_from_meta(meta: Any, data: Any) -> tuple[float, float]:
-    """Mean Doppler-centroid estimate and its quality flag.
+def _doppler_uncertain_flag(measu_path: str) -> float:
+    """Doppler-centroid quality flag of one imagette, as the legacy read it.
+
+    Mirrors cerbere ``SAFEGeoTiffFile._fill_dopplercentroidqualityflag``: the
+    ``dopplerCentroidUncertainFlag`` of the (last) ``qualityDataList`` entry
+    of the measurement annotation; ``1`` when ``true``, ``0`` when ``false``.
+
+    Returns ``nan`` when the annotation or the flag is unavailable.
+    """
+    measu = Path(measu_path)
+    annot = measu.parent.parent / "annotation" / (measu.stem + ".xml")
+    try:
+        root = ET.parse(annot).getroot()
+    except (OSError, ET.ParseError) as exc:
+        logger.warning("cannot read annotation %s: %s", annot, exc)
+        return float("nan")
+    flags = root.findall(
+        "./qualityInformation/qualityDataList/qualityData/"
+        "dopplerCentroidQuality/dopplerCentroidUncertainFlag"
+    )
+    if not flags or flags[-1].text is None:
+        logger.warning("no dopplerCentroidUncertainFlag in %s", annot)
+        return float("nan")
+    return 0.0 if flags[-1].text.strip().lower() == "false" else 1.0
+
+
+def _doppler_from_meta(meta: Any, data: Any) -> float:
+    """Mean Doppler-centroid estimate over the image.
 
     Mirrors ``cerbere.mapper.safegeotiff.File.read_values('doppler_centroid')``:
     the per-(azimuth, slant-range) ``frequency`` DC estimates are
@@ -88,7 +120,7 @@ def _doppler_from_meta(meta: Any, data: Any) -> tuple[float, float]:
         dop = meta._doppler_estimate
     except Exception as exc:
         logger.debug("no doppler estimate available: %s", exc)
-        return float("nan"), float("nan")
+        return float("nan")
 
     freq = np.asarray(dop["frequency"].values, dtype=np.float64)  # (n_dce, n_srt)
     srt = np.asarray(dop["slantRangeTime"].values, dtype=np.float64)
@@ -108,12 +140,7 @@ def _doppler_from_meta(meta: Any, data: Any) -> tuple[float, float]:
     n_line, n_samp = az.shape
     x_int = ((az - base) / np.timedelta64(1, "s"))[:, n_samp // 2 : n_samp // 2 + 1]
     y_int = sl[n_line // 2 : n_line // 2 + 1, :]
-    mean = float(np.mean(func(x_int, y_int)))
-
-    quality = int(
-        bool(np.asarray(dop["dataDcRmsErrorAboveThreshold"].values).ravel()[-1])
-    )
-    return mean, quality
+    return float(np.mean(func(x_int, y_int)))
 
 
 def read_slc_imagette(measu_path: str) -> dict:
@@ -147,7 +174,8 @@ def read_slc_imagette(measu_path: str) -> dict:
     dn = np.asarray(data["digital_number"].isel(pol=0).values)
     i_sq = np.abs(dn) ** 2
 
-    doppler_mean, doppler_quality = _doppler_from_meta(meta, data)
+    doppler_mean = _doppler_from_meta(meta, data)
+    doppler_quality = _doppler_uncertain_flag(measu_path)
     track_angle = float(meta.platform_heading)
 
     return {

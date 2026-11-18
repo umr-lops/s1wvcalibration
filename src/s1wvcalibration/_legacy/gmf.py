@@ -26,9 +26,14 @@ PARITY NOTES
 * ``cmod_ifr2``: the xsarsea implementation was verified **exactly equal** to
   the legacy ``cmod_ifremer.cmod_ifr2`` (max diff 0.0 dB), so a single
   implementation is enough.
-* ``cmod5``: only the xsarsea version is available (the legacy
-  ``sar.utils.gmf.cmod5`` source is not in the sandbox); kept for reference
-  (CMOD5 is not the GMF used for reporting/interpretation, only CMOD5n is).
+* ``cmod5``: the legacy production called ``sar.utils.gmf.cmod5(u10, phi, inc)``
+  whose signature is ``cmod5(u10, phi, inc, neutral=True)``: despite its name it
+  used the **CMOD5.N** coefficients (element-wise, standard formulation). The
+  ``correction_wv*_cmod5*`` variables and the ``wind_vs_sig_calibrated_cmod5``
+  figure have therefore always been CMOD5.N. :func:`cmod5` reproduces this with
+  xsarsea ``cmod5n`` (verified against the legacy source to < 1e-5 dB, see
+  ``test_gmf_parity``). Calling the true CMOD5 (xsarsea ``cmod5``) shifts the
+  constants by +0.3 to +0.75 dB.
 """
 
 from __future__ import annotations
@@ -92,16 +97,19 @@ def cmod5n_forward(v: NDArray, phi: NDArray, theta: NDArray) -> NDArray:
 
 
 def cmod5(v: NDArray, phi: NDArray, theta: NDArray) -> NDArray:
-    """CMOD5 linear backscatter (xsarsea).
+    """Legacy "cmod5" linear backscatter -- which is in fact CMOD5.N.
+
+    Reproduces ``sar.utils.gmf.cmod5(u10, phi, inc)`` as called by the legacy
+    production, i.e. with its default ``neutral=True`` (CMOD5.N coefficients,
+    element-wise). Kept under this name so that the ``*_cmod5`` NetCDF
+    variables and figure stay continuous with the historical archive.
 
     Args:
         v: wind speed [m/s].
         phi: wind azimuth relative to antenna [deg].
         theta: incidence angle [deg].
     """
-    model = get_model("cmod5")
-    res = model(theta, v, phi, broadcast=True)
-    return _to_linear_ndarray(res)
+    return cmod5n_xsarsea(v, phi, theta)
 
 
 def cmod_ifr2(inc: NDArray, v: NDArray, phi: NDArray) -> NDArray:

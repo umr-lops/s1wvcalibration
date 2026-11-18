@@ -29,8 +29,9 @@ paths:
   ecmwf_0100_full: provider/ecmwf/forecast/hourly/0100deg/netcdf_full
   # ECMWF 0.125 deg 3-hourly wind fields (METEOFRANCE_CEP_*.nc).
   ecmwf_0125: archive/provider/ecmwf/model/forecast_0125/netcdf
-  # Land mask (mwf-ers-mask.nc lives in this directory).
-  land_mask: cache/public/ftp/project/landmask
+  # Land mask (mwf-ers-mask.nc lives in this directory). Same location as the
+  # legacy ``shared_information.LAND_MASK_PATH``.
+  land_mask: cache/project/mpc-sentinel1/data/ancillary/landmasks
   # Deep-learning WV texture classification (DL_Summary.xml per date).
   classif_wv_cls: cache/public/ftp/project/deeplearning
   # WW3 spectra colocated with L2 S1 (for significant-wave-height bias).

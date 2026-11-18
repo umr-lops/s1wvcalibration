@@ -75,7 +75,9 @@ values.
 - `incidence`, `elevation`, `lon`, `lat` at the full-resolution spline centre
   (`line//2`, `sample//2`);
 - `doppler_centroid` (image mean of the DC estimates, spline-interpolated) and
-  `doppler_centroid_quality` (`dataDcRmsErrorAboveThreshold`);
+  `doppler_centroid_quality` (annotation
+  `qualityInformation/.../dopplerCentroidQuality/dopplerCentroidUncertainFlag`,
+  as in the legacy cerbere reader);
 - `track_angle` (platform heading);
 - normalised variance (Nv), skewness, kurtosis of the intensity image.
 
