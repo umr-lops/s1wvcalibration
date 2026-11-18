@@ -36,7 +36,8 @@ env:
 jobs:
   image:
     name: Build (and publish) the Apptainer image
-    runs-on: ubuntu-latest
+    # the apptainer .deb (1.4.x) depends on libfuse3-3, absent from newer Ubuntu
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
