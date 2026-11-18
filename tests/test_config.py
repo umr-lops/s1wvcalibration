@@ -37,6 +37,13 @@ def test_defaults_loaded():
     assert cfg["satellites"]["S1A"] == "sentinel-1a"
 
 
+def test_default_land_mask_matches_legacy():
+    """The land mask lives where the legacy ``LAND_MASK_PATH`` pointed."""
+    assert load_config()["paths"]["land_mask"] == (
+        "cache/project/mpc-sentinel1/data/ancillary/landmasks"
+    )
+
+
 def test_get_config_is_alias():
     assert get_config() is load_config()
 

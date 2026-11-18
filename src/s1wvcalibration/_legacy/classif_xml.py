@@ -30,7 +30,15 @@ def read_xml_classif_ID(full_path_xml: str) -> pd.DataFrame:
     logger.debug("full_path_xml %s", full_path_xml)
     tree = etree.parse(full_path_xml)
     for imagette in tree.xpath("/DL_Summary/imagettes/id"):
-        im_id = imagette.text
+        # The imagette number is carried by the ``value`` attribute
+        # (``<id value="1">...``), as read by the legacy ``imagette.values()[0]``;
+        # the element text is empty (children only).
+        im_id = imagette.get("value")
+        if im_id is None:
+            logger.warning(
+                "imagette <id> without 'value' attribute in %s", full_path_xml
+            )
+            continue
         data[im_id] = {}
         for chi in imagette.getchildren():
             if chi.tag in ("prob_1", "prob_2", "prob_3"):

@@ -31,7 +31,8 @@ MEASU_NAME = "s1d-wv1-ocn-vv-20200101t000000-20200101t003443-012345-00378e-0001.
 _XML = (
     '<?xml version="1.0" encoding="UTF-8"?>'
     "<DL_Summary><imagettes>"
-    "<id>1<lonlat_center>10.0 20.0</lonlat_center>"
+    '<id value="1"><wm_type>wv1</wm_type><lonlat_center>10.0 20.0</lonlat_center>'
+    "<process_status>OK</process_status>"
     "<all_prob>0.5 0.2 0.1 0.07 0.05 0.03 0.02 0.01 0.007 0.003</all_prob>"
     "</id></imagettes></DL_Summary>"
 )
@@ -79,6 +80,28 @@ def test_read_xml_classif_id(classif_root):  # noqa: ARG001  # side-effect fixtu
     assert float(row["lat"]) == 20.0
     # probabilities are sorted descending
     assert float(row["prob_1"]) >= float(row["prob_10"])
+
+
+def test_read_xml_classif_id_uses_value_attribute(classif_root):  # noqa: ARG001  # side-effect fixture
+    """Regression: the imagette number is the ``value`` attribute, not the text.
+
+    Real DL_Summary.xml files look like ``<id value="2"><wm_type>...``; reading
+    ``<id>.text`` gave ``None`` and left ``rough_class_sar`` empty everywhere.
+    """
+    xml = _xml_path_for(SAFE)
+    xml.parent.mkdir(parents=True)
+    two = _XML.replace("</imagettes>", "").replace("</DL_Summary>", "")
+    two += (
+        '<id value="2"><wm_type>wv2</wm_type><lonlat_center>11.0 21.0</lonlat_center>'
+        "<class_1>POS</class_1><prob_1>0.9</prob_1>"
+        "<all_prob>0.01 0.01 0.01 0.01 0.01 0.03 0.9 0.01 0.005 0.005</all_prob>"
+        "</id></imagettes></DL_Summary>"
+    )
+    xml.write_text(two)
+    df = read_xml_classif_ID(str(xml))
+    assert sorted(df.columns) == ["1", "2"]
+    assert df["2"]["class_1"] == "POS"
+    assert float(df["2"]["lat"]) == 21.0
 
 
 def test_get_xml_path_from_measu_found(classif_root, tmp_path):  # noqa: ARG001  # side-effect fixture
@@ -132,7 +155,7 @@ def test_classification_missing_imagette(classif_root, tmp_path):  # noqa: ARG00
     measu.write_text("")
     xml = _xml_path_for(SAFE)
     xml.parent.mkdir(parents=True)
-    xml.write_text(_XML.replace("<id>1", "<id>999"))
+    xml.write_text(_XML.replace('<id value="1">', '<id value="999">'))
     content: dict[str, object] = {}
     errors: dict[str, int] = collections.defaultdict(int)
     counters: dict[str, int] = collections.defaultdict(int)
