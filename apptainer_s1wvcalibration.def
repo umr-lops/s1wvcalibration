@@ -1,6 +1,13 @@
 Bootstrap: docker
 From: continuumio/miniconda3:4.12.0
 
+# Build (no .git in the image -> the version must be given explicitly):
+#   apptainer build --fakeroot --ignore-fakeroot-command \
+#       --build-arg VERSION=$(git describe --tags | sed 's/-\([0-9]*\)-g/.post\1+g/') \
+#       s1wvcalibration_<date>.sif apptainer_s1wvcalibration.def
+%arguments
+    VERSION=0.0.0+unknown
+
 %environment
     export LANG=C.UTF-8
     export LC_ALL=C.UTF-8
@@ -11,6 +18,7 @@ From: continuumio/miniconda3:4.12.0
 %files
     pyproject.toml /opt/s1wvcalibration/
     README.md /opt/s1wvcalibration/
+    LICENSE /opt/s1wvcalibration/
     src/s1wvcalibration /opt/s1wvcalibration/src/s1wvcalibration
 
 %post
@@ -40,9 +48,13 @@ From: continuumio/miniconda3:4.12.0
         python=3.12 pip gdal dask xarray numpy scipy matplotlib \
         cftime h5netcdf h5py pyyaml
 
-    conda run -n s1wvcalibration pip install --no-cache-dir "xsar[s1]" xsarsea
+    # Versions validated against the legacy production (see PR #23).
+    conda run -n s1wvcalibration pip install --no-cache-dir \
+        "xsar[s1]==2026.8.31" "xarray-safe-s1==2026.1.23" "xsarsea==2.1.2"
 
     cd /opt/s1wvcalibration
+    # flit_scm/setuptools_scm cannot read the version without .git
+    export SETUPTOOLS_SCM_PRETEND_VERSION="{{ VERSION }}"
 
     conda run -n s1wvcalibration pip install --no-cache-dir -e . --no-deps
 
