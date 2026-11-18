@@ -1,0 +1,112 @@
+name: Apptainer image
+
+# Builds the Apptainer (Singularity) image from apptainer_s1wvcalibration.def.
+# - on a tag: build, smoke-test and publish it to GHCR as an ORAS artifact
+#     oras://ghcr.io/<owner>/<repo>:<tag>  (+ :latest)
+#   pull it on the HPC with:
+#     apptainer pull s1wvcalibration_<tag>.sif oras://ghcr.io/umr-lops/s1wvcalibration:<tag>
+# - on a pull request touching the recipe / dependencies / this workflow:
+#   build and smoke-test only (nothing is published).
+# - manually (workflow_dispatch): build and smoke-test; publish only if the
+#   "publish" input is set (tagged with the computed version).
+
+on:
+  push:
+    tags:
+      - "*"
+  pull_request:
+    paths:
+      - apptainer_s1wvcalibration.def
+      - pyproject.toml
+      - .github/workflows/apptainer.yml
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Push the image to GHCR"
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APPTAINER_VERSION: "1.4.2"
+
+jobs:
+  image:
+    name: Build (and publish) the Apptainer image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Free disk space (conda env + image build need several GB)
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h /
+
+      - uses: eWaterCycle/setup-apptainer@v2
+        with:
+          apptainer-version: ${{ env.APPTAINER_VERSION }}
+
+      - name: Compute the package version
+        id: version
+        run: |
+          # Same scheme as setuptools_scm: the tag itself on a tag,
+          # <last tag>.post<N>+g<sha> otherwise (no .git in the image).
+          version=$(git describe --tags | sed 's/-\([0-9]*\)-g/.post\1+g/')
+          # OCI tags cannot contain "+"
+          image_tag=${version//+/-}
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${image_tag}" >> "$GITHUB_OUTPUT"
+          echo "version=${version} image_tag=${image_tag}"
+
+      - name: Build the image
+        run: |
+          sudo apptainer build \
+            --build-arg VERSION="${{ steps.version.outputs.version }}" \
+            s1wvcalibration.sif apptainer_s1wvcalibration.def
+          ls -lh s1wvcalibration.sif
+
+      - name: Smoke test
+        run: |
+          got=$(apptainer exec s1wvcalibration.sif \
+            /opt/conda/envs/s1wvcalibration/bin/python -c \
+            "import s1wvcalibration; print(s1wvcalibration.__version__)")
+          echo "s1wvcalibration ${got}"
+          test "${got}" = "${{ steps.version.outputs.version }}"
+          apptainer exec s1wvcalibration.sif \
+            /opt/conda/envs/s1wvcalibration/bin/s1wvcalib --help
+          apptainer exec s1wvcalibration.sif \
+            /opt/conda/envs/s1wvcalibration/bin/s1wvfig --help
+          apptainer exec s1wvcalibration.sif \
+            /opt/conda/envs/s1wvcalibration/bin/python -c \
+            "import xsar, xsarsea, safe_s1; print(xsar.__version__, xsarsea.__version__, safe_s1.__version__)"
+
+      - name: Publish to GHCR (ORAS)
+        if: >-
+          startsWith(github.ref, 'refs/tags/') ||
+          (github.event_name == 'workflow_dispatch' && inputs.publish)
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          repo=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
+          echo "${REGISTRY_TOKEN}" | apptainer registry login \
+            --username "${GITHUB_ACTOR}" --password-stdin oras://ghcr.io
+          apptainer push s1wvcalibration.sif \
+            "oras://ghcr.io/${repo}:${{ steps.version.outputs.image_tag }}"
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            apptainer push s1wvcalibration.sif "oras://ghcr.io/${repo}:latest"
+          fi
+          {
+            echo "### Apptainer image published"
+            echo '```'
+            echo "apptainer pull s1wvcalibration_${{ steps.version.outputs.image_tag }}.sif oras://ghcr.io/${repo}:${{ steps.version.outputs.image_tag }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
