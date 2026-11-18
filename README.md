@@ -57,6 +57,25 @@ This replaces the legacy `shared_information` module.
 pip install s1wvcalibration
 ```
 
+### Apptainer image (HPC)
+
+An Apptainer image is built from `apptainer_s1wvcalibration.def` and published
+to the GitHub Container Registry for every tag:
+
+```bash
+apptainer pull s1wvcalibration_<tag>.sif oras://ghcr.io/umr-lops/s1wvcalibration:<tag>
+apptainer exec s1wvcalibration_<tag>.sif s1wvcalib --help
+```
+
+To build it locally (the version must be passed explicitly, there is no `.git`
+in the image):
+
+```bash
+apptainer build --fakeroot --ignore-fakeroot-command \
+  --build-arg VERSION=$(git describe --tags | sed 's/-\([0-9]*\)-g/.post\1+g/') \
+  s1wvcalibration.sif apptainer_s1wvcalibration.def
+```
+
 ## Usage
 
 Run the calibration for a single SAFE:
