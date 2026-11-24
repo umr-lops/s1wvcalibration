@@ -52,7 +52,7 @@ jobs:
             /opt/hostedtoolcache/CodeQL /usr/local/share/boost
           df -h /
 
-      - uses: eWaterCycle/setup-apptainer@v2
+      - uses: eWaterCycle/setup-apptainer@v3
         with:
           apptainer-version: ${{ env.APPTAINER_VERSION }}
 
